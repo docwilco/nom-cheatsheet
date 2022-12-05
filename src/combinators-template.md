@@ -58,7 +58,7 @@ Those are used to recognize the lowest level elements of your grammar, like, "he
 | combinator::recognize | `recognize(separated_pair(alpha1, char(','), alpha1))` | `"abc,def"` |  | Returns a slice of the input consumed by the child parser/combinator. No matter how complex/nested, or whether combinators throw parts away, this will return a single slice with everything that was consumed |
 | combinator::rest | `rest` | `"abc"` |  | Returns the remaining input. Mainly useful for combining with other combinators |
 | combinator::rest_len | `rest_len` | `"abc"` |  | Returns the length of the remaining input, does not consume anything |
-| combinator::into | `into::<_, _, Vec<u8>, (_, _), _, _>(alpha1)` | `"abcd"` |  | Use Rust's `Into` trait to convert the result of a parser if possible |
+| combinator::into | `let output: IResult<&str, Vec<u8>> = into(my_alpha1)` | `"abcd"` |  | Use Rust's `Into` trait to convert the result of a parser if possible |
 
 ## Choice combinators
 
@@ -90,7 +90,7 @@ Those are used to recognize the lowest level elements of your grammar, like, "he
 | multi::many_m_n | `many_m_n(2, 2, tag("ab"))` | `"ababc"` |  | Applies the parser at least `m` and at most `n` times and returns the list of results in a `Vec` |
 | multi::many_till | `many_till(tag("ab"), tag("ef"))` | `"ababefg"` |  | Applies the first parser until the second applies. Returns a tuple containing the list of results from the first in a `Vec` and the result of the second |
 | multi::separated_list0<br>multi::separated_list1 | `separated_list0(tag(","), tag("ab"))` | `"ab,ab,ab."` |  | Using the first parser to match separators, returns a `Vec` of zero or more results from the second parser. `separated_list1` does the same operation but must return at least one element |
-| multi::fold_many0<br>multi::fold_many1<br>multi::fold_many_m_n | `fold_many0(take(1u8), Vec::new(), |mut acc, item| { acc.push(item); acc })` | `"abc"` |  | Applies the parser 0 or more times and folds the list of return values. The `fold_many1` version must apply the parser at least one time, and `fold_many_m_n` must apply the parser at least `m` and at most `n` times |
+| multi::fold_many0<br>multi::fold_many1<br>multi::fold_many_m_n | `fold_many0(take(1u8), Vec::new, |mut acc, item| { acc.push(item); acc })` | `"abc"` |  | Applies the parser 0 or more times and folds the list of return values. The `fold_many1` version must apply the parser at least one time, and `fold_many_m_n` must apply the parser at least `m` and at most `n` times |
 | multi::length_count | `length_count(number, tag("ab"))` | `"2ababab"` |  | Gets a number from the first parser, then applies the second parser that many times. `number` is a custom defined parser along the lines of text to integer parsers below |
 
 ## Combinators to do with completeness
@@ -168,3 +168,4 @@ Parsing integers from binary formats can be done in two ways: With parser functi
 | number::complete::be_f32<br>number::streaming::be_f32<br>number::complete::be_f64<br>number::streaming::be_f64 | `be_f32` | `&[0x41, 0x48, 0x00, 0x00][..]` |  | Recognizes a big endian floating point number |
 | number::complete::le_f32<br>number::streaming::le_f32<br>number::complete::le_f64<br>number::streaming::le_f64 | `le_f32` | `&[0x00, 0x00, 0x48, 0x41][..]` |  | Recognizes a big endian floating point number |
 
+# Fin

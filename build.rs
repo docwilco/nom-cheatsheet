@@ -1,4 +1,3 @@
-use anyhow::Result;
 use itertools::Itertools;
 use nom::{
     bytes::complete::{tag, take_until},
@@ -8,6 +7,7 @@ use nom::{
     sequence::pair,
     IResult,
 };
+use std::io::Result;
 use std::{
     env,
     fs::{read_to_string, File},
@@ -21,14 +21,15 @@ static TABLE_HEADER: &str = "| combinator | usage | input | output | description
 
 #[derive(Debug)]
 struct Combinator<'a> {
-    name: String,
+    _name: String,
     urls: Vec<(String, String, String)>,
     usage: &'a str,
     input: &'a str,
     description: &'a str,
 }
 
-fn parse_combinator<'a>(input: &'a str) -> IResult<&'a str, Combinator<'a>> {
+// This parses a single table row
+fn parse_combinator(input: &str) -> IResult<&str, Combinator> {
     let sep = " | ";
     let (input, _) = tag("| ")(input)?;
     let (input, urls): (&str, &str) = take_until(sep)(input)?;
@@ -47,7 +48,7 @@ fn parse_combinator<'a>(input: &'a str) -> IResult<&'a str, Combinator<'a>> {
     let (input, _) = line_ending(input)?;
 
     let urls = urls.split("<br>").fold(Vec::new(), |mut acc, url| {
-        if url.len() == 0 {
+        if url.is_empty() {
             return acc;
         }
         let mut parts = url.split("::").collect::<Vec<_>>();
@@ -64,14 +65,14 @@ fn parse_combinator<'a>(input: &'a str) -> IResult<&'a str, Combinator<'a>> {
         acc.push((path, name, url));
         acc
     });
-    let mut name = "".to_string();
-    if urls.len() > 0 {
-        name = urls[0].1.clone();
+    let mut _name = "".to_string();
+    if !urls.is_empty() {
+        _name = urls[0].1.clone();
     }
     Ok((
         input,
         Combinator {
-            name,
+            _name,
             urls,
             usage,
             input: example_input,
@@ -80,6 +81,8 @@ fn parse_combinator<'a>(input: &'a str) -> IResult<&'a str, Combinator<'a>> {
     ))
 }
 
+// This parses a single table and returns a vector of combinators, and also returns the
+// text before the table.
 fn parse_preamble_and_combinators(input: &str) -> IResult<&str, (&str, Vec<Combinator>)> {
     let (input, preamble) = recognize(pair(take_until(TABLE_HEADER), tag(TABLE_HEADER)))(input)?;
     let (input, combinators) = many1(parse_combinator)(input)?;
@@ -89,57 +92,91 @@ fn parse_preamble_and_combinators(input: &str) -> IResult<&str, (&str, Vec<Combi
 fn main() -> Result<()> {
     let input = read_to_string("src/combinators-template.md")?;
 
-    let (input, result): (&str, Vec<(&str, Vec<Combinator>)>) =
+    // This snags a Vec of Tuples
+    // .0 is all the text since the start of the file or the end of the previous table
+    // upto and including the header of the current table, aka preamble
+    // .1 is the vector of combinators in the current table
+    let (remainder, result): (&str, Vec<(&str, Vec<Combinator>)>) =
         many1(parse_preamble_and_combinators)(&input).unwrap();
 
     let mut fnmain: Vec<u8> = Vec::new();
     let mut uses: Vec<String> = Vec::new();
+
+    // the include macro only works with a single expression in the file,
+    // so turn the whole file into a single block with { and }
     writeln!(&mut fnmain, "{{")?;
+
     for table in result {
         // Preamble already ends with a newline, so use print instead of println
         // escape braces first, though
-        let preamble = table.0.replace("{", "{{");
-        let preamble = preamble.replace("}", "}}");
-        writeln!(&mut fnmain, r#####"print!(r####"{}"####);"#####, preamble)?;
+        let preamble = table.0.replace('{', "{{").replace('}', "}}");
+        // Use ##### (5#) for the raw string literal, so that the included file can use
+        // #### (4#) for its raw strings. That way, those can contain up to ### (3#) without
+        // any trouble. That should be enough for markdown headers.
+        //
+        // Preamble is put into the end result as-is.
+        writeln!(
+            &mut fnmain,
+            r#####"write!(markdown, r####"{}"####)?;"#####,
+            preamble
+        )?;
         for combinator in table.1 {
             let mut input = combinator.input.to_string();
             if input.starts_with("b\"") {
                 input.push_str(" as &[u8]");
             }
             for (module, name, _) in combinator.urls.iter().filter(|(module, _, _)| {
+                // filter out any modules that end with streaming or start with bits
                 !(module.ends_with("streaming") || module.starts_with("bits"))
             }) {
+                // We put all of these into a Vec so we can dedup them, as `use` statements
+                // can't be duplicated
+                //
+                // Allow unused imports for these specific ones, as not all are used in the
+                // examples
                 uses.push(format!(
                     "#[allow(unused_imports)]\nuse nom::{}::{};\n",
                     module, name
                 ));
             }
-            let test_code = format!("{}({})", combinator.usage, input);
+
             let urls = combinator
                 .urls
                 .iter()
                 .map(|(module, name, docsurl)| format!("{}::[{}]({})", module, name, docsurl))
                 .collect::<Vec<_>>()
                 .join("<br>");
-            println!("{}", test_code);
+
+            // Some examples need explicit types in the let statement, they will
+            // start with "let output", the rest don't for brevity.
+            let assignment: String = if combinator.usage.starts_with("let output") {
+                format!("{}({});\n", combinator.usage, input)
+            } else {
+                format!(
+                    "let output: IResult<_, _> = {}({});\n",
+                    combinator.usage, input
+                )
+            };
+            fnmain.write_all(assignment.as_bytes())?;
+
+            let usage = combinator.usage.replace('{', "{{");
+            let usage = usage.replace('}', "}}");
+            let usage = usage.replace('|', "\\|");
             writeln!(
                 &mut fnmain,
-                r#####"let debug: IResult<_, _> = {};"#####,
-                test_code
-            )?;
-            let usage = combinator.usage.replace("{", "{{");
-            let usage = usage.replace("}", "}}");
-            writeln!(
-                &mut fnmain,
-                r#####"println!(r####"| {} | `{}` | `{}` | `{{:?}}` | {} |"####, debug);"#####,
+                r#####"writeln!(markdown, r####"| {} | `{}` | `{}` | `{{:?}}` | {} |"####, output)?;"#####,
                 urls, usage, combinator.input, combinator.description,
             )?;
         }
     }
-    let remainder = input.replace("{", "{{");
-    let remainder = remainder.replace("}", "}}");
 
-    writeln!(&mut fnmain, r#####"print!(r####"{}"####);"#####, remainder)?;
+    let remainder = remainder.replace('{', "{{").replace('}', "}}");
+
+    writeln!(
+        &mut fnmain,
+        r#####"write!(markdown, r####"{}"####)?;"#####,
+        remainder
+    )?;
 
     writeln!(&mut fnmain, "}}")?;
 
