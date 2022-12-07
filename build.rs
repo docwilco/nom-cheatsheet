@@ -90,7 +90,7 @@ fn parse_preamble_and_combinators(input: &str) -> IResult<&str, (&str, Vec<Combi
 }
 
 fn main() -> Result<()> {
-    let input = read_to_string("src/combinators-template.md")?;
+    let input = read_to_string("src/nom-cheatsheet-template.md")?;
 
     // This snags a Vec of Tuples
     // .0 is all the text since the start of the file or the end of the previous table
