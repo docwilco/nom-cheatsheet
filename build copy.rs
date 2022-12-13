@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use nom::{
     bytes::complete::{tag, take_until},
-    character::complete::{char, line_ending, space0},
+    character::complete::{char, line_ending},
     combinator::recognize,
     multi::many1,
     sequence::pair,
@@ -23,28 +23,16 @@ static TABLE_HEADER: &str = "| combinator | usage | input | output | description
 struct Combinator<'a> {
     name: String,
     urls: Vec<(String, String, String)>,
-    usage: Option<&'a str>,
+    usage: &'a str,
     input: &'a str,
     description: &'a str,
 }
 
-fn parse_code(input: &str) -> IResult<&str, &str> {
-    let (input, _) = char('`')(input)?;
-    let (input, code) = take_until("`")(input)?;
-    let (input, _) = char('`')(input)?;
-    Ok((input, code))
-}
-
-fn parse_separator(input: &str) -> IResult<&str, &str> {
-    tag(" | ")(input)?;
-    Ok((input, ""))
-}
-
 // This parses a single table row
 fn parse_combinator(input: &str) -> IResult<&str, Combinator> {
-    let (input, _) = tag("|")(input)?;
-    let (input, _) = space0(input)?;
-    let (input, urls): (&str, &str) = take_until()(input)?;
+    let sep = " | ";
+    let (input, _) = tag("| ")(input)?;
+    let (input, urls): (&str, &str) = take_until(sep)(input)?;
     let (input, _) = tag(sep)(input)?;
     let (input, _) = char('`')(input)?;
     let (input, usage) = take_until("`")(input)?;
@@ -183,13 +171,9 @@ fn main() -> Result<()> {
 
             fnmain.write_all(assignment.as_bytes())?;
 
-            println!("cargo:warning=usage: {}", combinator.usage);
-            let usage = if combinator.usage.is_empty() {
-                println!("cargo:warning=empty usage for {}", combinator.name);
-                combinator.name.to_string()
-            } else {
-                println!("cargo:warning=non-empty usage for {}", combinator.name);
-                combinator.usage.to_string()
+            let usage = match combinator.usage {
+                "" => combinator.name.to_string(),
+                _ => combinator.usage.to_string(),
             };
             let usage = usage.replace('{', "{{");
             let usage = usage.replace('}', "}}");

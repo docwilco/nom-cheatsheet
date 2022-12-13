@@ -24,20 +24,40 @@ If you are writing a function that takes in input and returns a struct, you shou
 
 ## Basic elements
 
-Those are used to recognize the lowest level elements of your grammar, like, "here is a dot", or "here is an big endian integer".
+Those are used to recognize the lowest level elements of your grammar, like, "here is a dot", "here is a number", "here is a line ending". These are split up into matching a single byte or character, and matching multiple bytes or characters. 
+
+### Single byte or character parsers
+
+All of these parsers will return a single byte or character.
 
 | combinator | usage | input | output | description |
 |---|---|---|---|---|
 | character::complete::char<br>character::streaming::char | `char('a')` | `"abc"` |  | Matches one character (works with non ASCII chars too) |
-| bytes::complete::is_a<br>bytes::streaming::is_a | `is_a("ab")` | `"ababc"` |  | Matches a sequence of any of the characters passed as arguments |
-| bytes::complete::is_not<br>bytes::streaming::is_not | `is_not("cd")` | `"ababc"` |  | Matches a sequence of none of the characters passed as arguments |
 | character::complete::one_of<br>character::streaming::one_of | `one_of("abc")` | `"abc"` |  | Matches one of the provided characters (works with non ASCII chars too) |
 | character::complete::none_of<br>character::streaming::none_of | `none_of("abc")` | `"xyab"` |  | Matches anything but the provided characters |
+| 
+
+### Sequence of bytes or characters parsers
+
+These parsers will return a slice of bytes or characters. Those suffixed with `0` can return an empty slice if they match nothing. They usually have variants that are suffixed with `1` that will refuse to match unless there's at least 1 byte or character they can match. 
+
+| combinator | usage | input | output | description |
+|---|---|---|---|---|
+| bytes::complete::is_a<br>bytes::streaming::is_a | `is_a("ab")` | `"ababc"` |  | Matches a sequence of any of the characters passed as arguments |
+| bytes::complete::is_not<br>bytes::streaming::is_not | `is_not("cd")` | `"ababc"` |  | Matches a sequence of none of the characters passed as arguments |
+| character::complete::alpha0<br>character::streaming::alpha0 | `alpha0` | `"abc123"` |  | Matches zero or more alphabetical ASCII characters (`a-zA-Z`) |
+| character::complete::alpha1<br>character::streaming::alpha1 | `alpha1` | `"abc123"` |  | Matches one or more alphabetical ASCII characters (`a-zA-Z`) |
+|  | `alpha0` | `"123abc"` |  |  |
+|  | `alpha1` | `"123abc"` |  |  |
+| character::complete::digit0<br>character::streaming::digit0 |  | `"123abc"` |  | Matches zero or more numerical ASCII characters (`0-9`) |
 | bytes::complete::tag<br>bytes::streaming::tag<br>bits::complete::tag<br>bits::streaming::tag | `tag("hello")` | `"hello world"` |  | Recognizes a specific suite of characters, bytes, or bits |
 | bytes::complete::tag_no_case<br>bytes::streaming::tag_no_case | `tag_no_case("hello")` | `"HeLLo World"` |  | Recognizes a specific suite of characters, in a case insensitive manner |
 | bytes::complete::take<br>bytes::streaming::take<br>bits::complete::take<br>bits::streaming::take | `take(4u8)` | `"hello"` |  | Takes a specific number of characters, bytes, or bits |
-| bytes::complete::take_while<br>bytes::streaming::take_while<br>bytes::complete::take_while1<br>bytes::streaming::take_while1 | `take_while(|c| c as u8 > 64)` | `"abc123"` |  | Returns the longest list of bytes for which the provided function returns true. `take_while1` does the same, but must return at least one character |
-| bytes::complete::take_until<br>bytes::streaming::take_until | `take_until("world")` | `"Hello world"` |  | Returns the longest list of bytes or characters until the provided tag is found. |
+| bytes::complete::take_while<br>bytes::streaming::take_while<br>bytes::complete::take_while1<br>bytes::streaming::take_while1 | `take_while(\|c\| c as u8 > 64)` | `"abc123"` |  | Returns the longest consecutive list of bytes for which the provided function returns true. `take_while1` does the same, but must return at least one character |
+| bytes::complete::take_while_m_n<br>bytes::streaming::take_while_m_n | `take_while_m_n(4, 5, \|c\| is_alphanumeric(c as u8))` | `"abcd123"` |  | Like `take_while`, but with a minimum and maximum length for the match. |
+|  | `take_while_m_n(4, 5, \|c\| is_alphanumeric(c as u8))` | `"abcd-123"` |  |  |
+| bytes::complete::take_till<br>bytes::streaming::take_till<br>bytes::complete::take_till1<br>bytes::streaming::take_till1 | `take_till(\|c\| c as u8 <= 64)` | `"abc123"` |  | Returns the longest list of consecutive bytes for which the provided function returns false. `take_till1` does the same, but must return at least one character. Basically `take_till` is the same as `take_while` but with the result of the provided function negated. |
+| bytes::complete::take_until<br>bytes::streaming::take_until<br>bytes::complete::take_until1<br>bytes::streaming::take_until1 | `take_until("world")` | `"Hello world"` |  | Returns the longest list of bytes or characters until the provided tag is found. `take_until1` does the same, but must return at least one character |
 | bytes::complete::escaped<br>bytes::streaming::escaped | `escaped(digit1, '\\', one_of(r#""n\"#))` | `r#"12\"34"#` |  | XXX: no idea why this is useful |
 | bytes::complete::escaped_transform<br>bytes::streaming::escaped_transform | `escaped_transform(alpha1, '\\', value("n", tag("n")))` | `r#"ab\ncd"#` |  | XXX: no idea why this is useful |
 
@@ -46,9 +66,9 @@ Those are used to recognize the lowest level elements of your grammar, like, "he
 | combinator | usage | input | output | description |
 |---|---|---|---|---|
 | combinator::value | `value(1234, alpha1)` | `"abc789def"` |  | Returns the provided value if the parser succeeds |
-| combinator::map | `map(digit1, |s: &str| s.parse::<u8>().unwrap())` | `"123abc"` |  | Maps a function on the result of a parser |
-| combinator::map_opt | `map_opt(digit1, |s: &str| s.parse::<u8>().ok())` | `"123abc"` |  | Same as `map()` but requires the function to return an `Option`. |
-| combinator::map_res | `map_res(digit1, |s: &str| s.parse::<u8>())` | `"123abc"` |  | Same as `map()` but requires the function to return an `Result`. |
+| combinator::map | `map(digit1, \|s: &str\| s.parse::<u8>().unwrap())` | `"123abc"` |  | Maps a function on the result of a parser |
+| combinator::map_opt | `map_opt(digit1, \|s: &str\| s.parse::<u8>().ok())` | `"123abc"` |  | Same as `map()` but requires the function to return an `Option`. |
+| combinator::map_res | `map_res(digit1, \|s: &str\| s.parse::<u8>())` | `"123abc"` |  | Same as `map()` but requires the function to return an `Result`. |
 | combinator::flat_map | `flat_map(u8, take)` | `&[2, 90, 91, 92, 93][..]` |  | Apply the first parser, then use its output as the argument for the second parser and apply that to the rest of the input. In this example `u8` reads a single byte as an unsigned integer, then makes that the argument to `take` causing it to read the next 2 bytes |
 | combinator::map_parser | `map_parser(take(5u8), digit1)` | `"123abc"` |  | Apply the second parser on the result of the first parser |
 | combinator::not | `not(alpha1)` | `"123"` |  | Succeeds if the child parser returns an error |
@@ -90,7 +110,7 @@ Those are used to recognize the lowest level elements of your grammar, like, "he
 | multi::many_m_n | `many_m_n(2, 2, tag("ab"))` | `"ababc"` |  | Applies the parser at least `m` and at most `n` times and returns the list of results in a `Vec` |
 | multi::many_till | `many_till(tag("ab"), tag("ef"))` | `"ababefg"` |  | Applies the first parser until the second applies. Returns a tuple containing the list of results from the first in a `Vec` and the result of the second |
 | multi::separated_list0<br>multi::separated_list1 | `separated_list0(tag(","), tag("ab"))` | `"ab,ab,ab."` |  | Using the first parser to match separators, returns a `Vec` of zero or more results from the second parser. `separated_list1` does the same operation but must return at least one element |
-| multi::fold_many0<br>multi::fold_many1<br>multi::fold_many_m_n | `fold_many0(take(1u8), Vec::new, |mut acc, item| { acc.push(item); acc })` | `"abc"` |  | Applies the parser 0 or more times and folds the list of return values. The `fold_many1` version must apply the parser at least one time, and `fold_many_m_n` must apply the parser at least `m` and at most `n` times |
+| multi::fold_many0<br>multi::fold_many1<br>multi::fold_many_m_n | `fold_many0(take(1u8), Vec::new, \|mut acc, item\| { acc.push(item); acc })` | `"abc"` |  | Applies the parser 0 or more times and folds the list of return values. The `fold_many1` version must apply the parser at least one time, and `fold_many_m_n` must apply the parser at least `m` and at most `n` times |
 | multi::length_count | `length_count(number, tag("ab"))` | `"2ababab"` |  | Gets a number from the first parser, then applies the second parser that many times. `number` is a custom defined parser along the lines of text to integer parsers below |
 
 ## Combinators to do with completeness

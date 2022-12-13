@@ -1,5 +1,3 @@
-include! {concat!(env!("OUT_DIR"), "/uses.rs")}
-
 use std::fs::File;
 use std::io::{Result, Write};
 use std::path::Path;
@@ -7,11 +5,13 @@ use std::str;
 
 use nom::number::Endianness;
 use nom::{
-    character::complete::{alpha1, digit1},
+    character::{complete::digit1, is_alphanumeric},
     IResult,
 };
 
 use comrak::{markdown_to_html, ComrakOptions};
+
+include! {concat!(env!("OUT_DIR"), "/uses.rs")}
 
 fn number(input: &str) -> IResult<&str, usize> {
     map(digit1, |s: &str| s.parse().unwrap())(input)
