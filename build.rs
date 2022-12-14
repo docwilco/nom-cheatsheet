@@ -4,7 +4,7 @@ use nom::{
     character::complete::{char, line_ending, space0},
     combinator::recognize,
     multi::many1,
-    sequence::pair,
+    sequence::{pair, tuple},
     IResult,
 };
 use std::io::Result;
@@ -15,9 +15,8 @@ use std::{
     path::Path,
 };
 
-static TABLE_HEADER: &str = "| combinator | usage | input | output | description |
-|---|---|---|---|---|
-";
+static TABLE_HEADER1: &str = "| combinator | usage | input | output | description |";
+static TABLE_HEADER2: &str = "|---|---|---|---|---|";
 
 #[derive(Debug)]
 struct Combinator<'a> {
@@ -104,7 +103,15 @@ fn parse_combinator(input: &str) -> IResult<&str, Combinator> {
 // This parses a single table and returns a vector of combinators, and also returns the
 // text before the table.
 fn parse_preamble_and_combinators(input: &str) -> IResult<&str, (&str, Vec<Combinator>)> {
-    let (input, preamble) = recognize(pair(take_until(TABLE_HEADER), tag(TABLE_HEADER)))(input)?;
+    let (input, preamble) = recognize(
+        tuple((
+            take_until(TABLE_HEADER1),
+            tag(TABLE_HEADER1),
+            line_ending,
+            tag(TABLE_HEADER2),
+            line_ending))
+        )(input)?;
+
     let (input, combinators) = many1(parse_combinator)(input)?;
     Ok((input, (preamble, combinators)))
 }
