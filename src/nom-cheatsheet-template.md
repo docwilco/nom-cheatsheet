@@ -4,7 +4,7 @@ This is inspired by [`choosing_a_combinator.md`](https://github.com/Geal/nom/blo
 
 ## Quick introduction to Nom
 
-For those new to Nom, all parsers and combinators actually return a function, and said function is what the input is fed to. This is what allows you to combine a bunch of parsers using combinators. This causes syntax that looks slightly odd when you're not used to it. For example, the `char` parser used directly would look like this:
+For those new to Nom, most parsers and combinators actually return a function, and said function is what the input is fed to. This is what allows you to combine a bunch of parsers using combinators. This causes syntax that looks slightly odd when you're not used to it. For example, the `char` parser used directly would look like this:
 
 ```rust
 let (input, my_char) = char('a')(input)?;
@@ -33,9 +33,10 @@ All of these parsers will return a single byte or character.
 | combinator | usage | input | output | description |
 |---|---|---|---|---|
 | character::complete::char<br>character::streaming::char | `char('a')` | `"abc"` |  | Matches one character (works with non ASCII chars too) |
+|| `char('💞')` | `"💞🕊"` |  | Multi-byte characters work as well |
 | character::complete::one_of<br>character::streaming::one_of | `one_of("abc")` | `"abc"` |  | Matches one of the provided characters (works with non ASCII chars too) |
 | character::complete::none_of<br>character::streaming::none_of | `none_of("abc")` | `"xyab"` |  | Matches anything but the provided characters |
-| 
+
 
 ### Sequence of bytes or characters parsers
 
@@ -47,9 +48,13 @@ These parsers will return a slice of bytes or characters. Those suffixed with `0
 | bytes::complete::is_not<br>bytes::streaming::is_not | `is_not("cd")` | `"ababc"` |  | Matches a sequence of none of the characters passed as arguments |
 | character::complete::alpha0<br>character::streaming::alpha0 | `alpha0` | `"abc123"` |  | Matches zero or more alphabetical ASCII characters (`a-zA-Z`) |
 | character::complete::alpha1<br>character::streaming::alpha1 | `alpha1` | `"abc123"` |  | Matches one or more alphabetical ASCII characters (`a-zA-Z`) |
-|  | `alpha0` | `"123abc"` |  |  |
-|  | `alpha1` | `"123abc"` |  |  |
-| character::complete::digit0<br>character::streaming::digit0 |  | `"123abc"` |  | Matches zero or more numerical ASCII characters (`0-9`) |
+|  | `alpha0` | `"123abc"` |  | Because it is allowed to return an empty string, this does not error. |
+|  | `alpha1` | `"123abc"` |  | This however does error, because there must be at least one alphabetical ASCII character. |
+|  | `alpha1` | `"ααα"` |  | Only ASCII counts for these, not all of the unicode alphabetical characters. |
+| character::complete::digit0<br>character::streaming::digit0 | `digit0` | `"123abc"` |  | Matches zero or more numerical ASCII characters (`0-9`) |
+| character::complete::digit1<br>character::streaming::digit1 | `digit1` | `"123abc"` |  | Matches one or more numerical ASCII characters (`0-9`) |
+|  | `digit0` | `"abc123"` |  | Because it is allowed to return an empty string, this does not error. |
+|  | `digit1` | `"abc123"` |  | This however does error, because there must be at least one numerical ASCII character. |
 | bytes::complete::tag<br>bytes::streaming::tag<br>bits::complete::tag<br>bits::streaming::tag | `tag("hello")` | `"hello world"` |  | Recognizes a specific suite of characters, bytes, or bits |
 | bytes::complete::tag_no_case<br>bytes::streaming::tag_no_case | `tag_no_case("hello")` | `"HeLLo World"` |  | Recognizes a specific suite of characters, in a case insensitive manner |
 | bytes::complete::take<br>bytes::streaming::take<br>bits::complete::take<br>bits::streaming::take | `take(4u8)` | `"hello"` |  | Takes a specific number of characters, bytes, or bits |
@@ -59,6 +64,7 @@ These parsers will return a slice of bytes or characters. Those suffixed with `0
 | bytes::complete::take_till<br>bytes::streaming::take_till<br>bytes::complete::take_till1<br>bytes::streaming::take_till1 | `take_till(\|c\| c as u8 <= 64)` | `"abc123"` |  | Returns the longest list of consecutive bytes for which the provided function returns false. `take_till1` does the same, but must return at least one character. Basically `take_till` is the same as `take_while` but with the result of the provided function negated. |
 | bytes::complete::take_until<br>bytes::streaming::take_until<br>bytes::complete::take_until1<br>bytes::streaming::take_until1 | `take_until("world")` | `"Hello world"` |  | Returns the longest list of bytes or characters until the provided tag is found. `take_until1` does the same, but must return at least one character |
 | bytes::complete::escaped<br>bytes::streaming::escaped | `escaped(digit1, '\\', one_of(r#""n\"#))` | `r#"12\"34"#` |  | XXX: no idea why this is useful |
+|  | `escaped(digit1, '\\', one_of(r#""n\"#))` | `r#"12"34"#` |  |  |
 | bytes::complete::escaped_transform<br>bytes::streaming::escaped_transform | `escaped_transform(alpha1, '\\', value("n", tag("n")))` | `r#"ab\ncd"#` |  | XXX: no idea why this is useful |
 
 ## General combinators

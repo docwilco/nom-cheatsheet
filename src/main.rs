@@ -3,13 +3,13 @@ use std::io::{Result, Write};
 use std::path::Path;
 use std::str;
 
+use comrak::plugins::syntect::SyntectAdapterBuilder;
 use nom::number::Endianness;
-use nom::{
-    character::{complete::digit1, is_alphanumeric},
-    IResult,
-};
+use nom::{character::is_alphanumeric, IResult};
 
-use comrak::{markdown_to_html, ComrakOptions};
+use comrak::{markdown_to_html_with_plugins, Options, Plugins};
+use syntect::highlighting::ThemeSet;
+use syntect::html::{css_for_theme_with_class_style, ClassStyle};
 
 include! {concat!(env!("OUT_DIR"), "/uses.rs")}
 
@@ -31,13 +31,27 @@ fn main() -> Result<()> {
     let mut markdown_file = File::create(markdown_file)?;
     markdown_file.write_all(&markdown)?;
 
-    let mut options = ComrakOptions::default();
+    let mut options = Options::default();
     options.extension.table = true;
     options.render.unsafe_ = true;
-    let html = markdown_to_html(str::from_utf8(&markdown).unwrap(), &options);
+    let mut plugins = Plugins::default();
+    let syntect = SyntectAdapterBuilder::new().css().build();
+    plugins.render.codefence_syntax_highlighter = Some(&syntect);
+    let html =
+        markdown_to_html_with_plugins(str::from_utf8(&markdown).unwrap(), &options, &plugins);
 
     let html_file = Path::new(concat!(env!("OUT_DIR"), "/nom-cheatsheet.html"));
     println!("{:?}", html_file);
+    // Replace \ with / in the path
+    let html_file = html_file.to_str().unwrap().replace("\\", "/");
+    println!("file:///{}", html_file);
+
+    let themeset = ThemeSet::load_defaults();
+    let dark_theme = &themeset.themes["Solarized (dark)"];
+    let css_dark = css_for_theme_with_class_style(dark_theme, ClassStyle::Spaced).unwrap();
+    let light_theme = &themeset.themes["Solarized (light)"];
+    let css_light = css_for_theme_with_class_style(light_theme, ClassStyle::Spaced).unwrap();
+
     let mut html_file = File::create(html_file)?;
     html_file.write_all(
         r##"<!DOCTYPE html>
@@ -50,6 +64,18 @@ fn main() -> Result<()> {
         .as_bytes(),
     )?;
     html_file.write_all(include_bytes!("github-markdown.css"))?;
+    html_file.write_all(
+        r##"@media (prefers-color-scheme: dark) {"##
+            .as_bytes())?;
+    html_file.write_all(css_dark.as_bytes())?;
+    html_file.write_all(
+        r##"}
+@media (prefers-color-scheme: light) {"##
+            .as_bytes())?;
+    html_file.write_all(css_light.as_bytes())?;
+    html_file.write_all(
+        r##"}"##
+            .as_bytes())?;
     html_file.write_all(
         r##"
 
@@ -78,5 +104,10 @@ fn main() -> Result<()> {
 "##
         .as_bytes(),
     )?;
+
+//    let css_path = Path::new(concat!(env!("OUT_DIR"), "/syntax.css"));
+//    let mut css_file = File::create(css_path)?;
+//    css_file.write_all(css_dark.as_bytes())?;
+//    println!("{:?}", css_path);
     Ok(())
 }

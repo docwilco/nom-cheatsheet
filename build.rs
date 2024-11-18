@@ -4,7 +4,7 @@ use nom::{
     character::complete::{char, line_ending, space0},
     combinator::recognize,
     multi::many1,
-    sequence::{pair, tuple},
+    sequence::tuple,
     IResult,
 };
 use std::io::Result;
@@ -20,9 +20,9 @@ static TABLE_HEADER2: &str = "|---|---|---|---|---|";
 
 #[derive(Debug)]
 struct Combinator<'a> {
-    name: String,
+    _name: String,
     urls: Vec<(String, String, String)>,
-    usage: Option<&'a str>,
+    usage: String,
     input: &'a str,
     description: &'a str,
 }
@@ -34,28 +34,33 @@ fn parse_code(input: &str) -> IResult<&str, &str> {
     Ok((input, code))
 }
 
-fn parse_separator(input: &str) -> IResult<&str, &str> {
-    tag(" | ")(input)?;
+fn sep(input: &str) -> IResult<&str, &str> {
+    let (input, _) = space0(input)?;
+    let (input, _) = tag("|")(input)?;
+    let (input, _) = space0(input)?;
     Ok((input, ""))
 }
 
 // This parses a single table row
 fn parse_combinator(input: &str) -> IResult<&str, Combinator> {
-    let (input, _) = tag("|")(input)?;
+    let (input, _) = sep(input)?;
+    let (input, urls): (&str, &str) = take_until("|")(input)?;
+    let urls = urls.trim_end();
+    //println!("cargo:warning=URLS={:?}", urls);
     let (input, _) = space0(input)?;
-    let (input, urls): (&str, &str) = take_until()(input)?;
-    let (input, _) = tag(sep)(input)?;
-    let (input, _) = char('`')(input)?;
-    let (input, usage) = take_until("`")(input)?;
-    let (input, _) = char('`')(input)?;
-    let (input, _) = tag(sep)(input)?;
-    let (input, _) = char('`')(input)?;
-    let (input, example_input) = take_until("`")(input)?;
-    let (input, _) = char('`')(input)?;
-    let (input, _) = tag(sep)(input)?;
-    let (input, _) = tag(sep)(input)?;
-    let (input, description) = take_until(" |")(input)?;
-    let (input, _) = tag(" |")(input)?;
+    let (input, _) = sep(input)?;
+    let (input, usage) = parse_code(input)?;
+    //println!("cargo:warning=Usage={:?}", usage);
+    let usage = if usage.is_empty() { None } else { Some(usage) };
+    let (input, _) = sep(input)?;
+    let (input, example_input) = parse_code(input)?;
+    //println!("cargo:warning=Example Input={:?}", example_input);
+    let (input, _) = sep(input)?;
+    let (input, _) = sep(input)?;
+    let (input, description) = take_until("|")(input)?;
+    let description = description.trim_end();
+    //println!("cargo:warning=Description={:?}", description);
+    let (input, _) = sep(input)?;
     let (input, _) = line_ending(input)?;
 
     /*
@@ -84,14 +89,15 @@ fn parse_combinator(input: &str) -> IResult<&str, Combinator> {
         acc.push((path, name, url));
         acc
     });
-    let mut name = "".to_string();
+    let mut name = String::new();
     if !urls.is_empty() {
-        name = urls[0].1.clone();
+        name.clone_from(&urls[0].1);
     }
+    let usage = usage.unwrap_or(&name).to_string();
     Ok((
         input,
         Combinator {
-            name,
+            _name: name,
             urls,
             usage,
             input: example_input,
@@ -103,14 +109,13 @@ fn parse_combinator(input: &str) -> IResult<&str, Combinator> {
 // This parses a single table and returns a vector of combinators, and also returns the
 // text before the table.
 fn parse_preamble_and_combinators(input: &str) -> IResult<&str, (&str, Vec<Combinator>)> {
-    let (input, preamble) = recognize(
-        tuple((
-            take_until(TABLE_HEADER1),
-            tag(TABLE_HEADER1),
-            line_ending,
-            tag(TABLE_HEADER2),
-            line_ending))
-        )(input)?;
+    let (input, preamble) = recognize(tuple((
+        take_until(TABLE_HEADER1),
+        tag(TABLE_HEADER1),
+        line_ending,
+        tag(TABLE_HEADER2),
+        line_ending,
+    )))(input)?;
 
     let (input, combinators) = many1(parse_combinator)(input)?;
     Ok((input, (preamble, combinators)))
@@ -144,8 +149,7 @@ fn main() -> Result<()> {
         // Preamble is put into the end result as-is.
         writeln!(
             &mut fnmain,
-            r#####"write!(markdown, r####"{}"####)?;"#####,
-            preamble
+            r#####"write!(markdown, r####"{preamble}"####)?;"#####
         )?;
         for combinator in table.1 {
             // XXX: As said in the parser, there's transformations here that should
@@ -154,50 +158,40 @@ fn main() -> Result<()> {
             if input.starts_with("b\"") {
                 input.push_str(" as &[u8]");
             }
-            for (module, name, _) in combinator.urls.iter().filter(|(module, _, _)| {
+            for (module, name, _) in &combinator.urls {
                 // filter out any modules that end with streaming or start with bits
-                !(module.ends_with("streaming") || module.starts_with("bits"))
-            }) {
+                if module.ends_with("streaming") || module.starts_with("bits") {
+                    continue;
+                }
                 // We put all of these into a Vec so we can dedup them, as `use` statements
                 // can't be duplicated
                 //
                 // Allow unused imports for these specific ones, as not all are used in the
                 // examples
                 uses.push(format!(
-                    "#[allow(unused_imports)]\nuse nom::{}::{};\n",
-                    module, name
+                    "#[allow(unused_imports)]\nuse nom::{module}::{name};\n"
                 ));
             }
 
             let urls = combinator
                 .urls
                 .iter()
-                .map(|(module, name, docsurl)| format!("{}::[{}]({})", module, name, docsurl))
+                .map(|(module, name, docsurl)| format!("{module}::[{name}]({docsurl})"))
                 .collect::<Vec<_>>()
                 .join("<br>");
 
             // Some examples need explicit types in the let statement, they will
             // start with "let output", the rest don't for brevity.
-            let assignment: String = if combinator.usage.starts_with("let output") {
-                format!("{}({});\n", combinator.usage, input)
+            let usage = combinator.usage.to_string();
+            let assignment: String = if usage.starts_with("let output") {
+                format!("{usage}({input});\n")
             } else {
-                format!(
-                    "let output: IResult<_, _> = {}({});\n",
-                    combinator.usage, input
-                )
+                format!("let output: IResult<_, _> = {usage}({input});\n")
             };
             let assignment = assignment.replace("\\|", "|");
 
             fnmain.write_all(assignment.as_bytes())?;
 
-            println!("cargo:warning=usage: {}", combinator.usage);
-            let usage = if combinator.usage.is_empty() {
-                println!("cargo:warning=empty usage for {}", combinator.name);
-                combinator.name.to_string()
-            } else {
-                println!("cargo:warning=non-empty usage for {}", combinator.name);
-                combinator.usage.to_string()
-            };
             let usage = usage.replace('{', "{{");
             let usage = usage.replace('}', "}}");
             writeln!(
@@ -212,8 +206,7 @@ fn main() -> Result<()> {
 
     writeln!(
         &mut fnmain,
-        r#####"write!(markdown, r####"{}"####)?;"#####,
-        remainder
+        r#####"write!(markdown, r####"{remainder}"####)?;"#####
     )?;
 
     writeln!(&mut fnmain, "}}")?;
