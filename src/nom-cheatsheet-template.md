@@ -1,6 +1,6 @@
 # Nom cheatsheet
 
-This is inspired by [`choosing_a_combinator.md`](https://github.com/Geal/nom/blob/master/doc/choosing_a_combinator.md) in that it collects a bunch of the available things in one page and shows short examples of how each works.
+This is inspired by [`choosing_a_combinator.md`](https://github.com/Geal/nom/blob/master/doc/choosing_a_combinator.md "test") in that it collects a bunch of the available things in one page and shows short examples of how each works.
 
 ## Quick introduction to Nom
 
@@ -32,11 +32,13 @@ All of these parsers will return a single byte or character.
 
 | combinator | usage | input | output | description |
 |---|---|---|---|---|
-| character::complete::char<br>character::streaming::char | `char('a')` | `"abc"` |  | Matches one character (works with non ASCII chars too) |
-|| `char('💞')` | `"💞🕊"` |  | Multi-byte characters work as well |
-| character::complete::one_of<br>character::streaming::one_of | `one_of("abc")` | `"abc"` |  | Matches one of the provided characters (works with non ASCII chars too) |
-| character::complete::none_of<br>character::streaming::none_of | `none_of("abc")` | `"xyab"` |  | Matches anything but the provided characters |
-
+| character::complete::char<br>character::streaming::char | `char('a')` | `"abc"` |  | Matches one specific character |
+| | `char('a')` | `"cba"` | | If that character isn't the immediate input, parsing fails |
+| | `char('💞')` | `"💞🦀"` | | Multi-byte characters work as well |
+| character::complete::anychar<br>character::streaming::anychar | `anychar` | `"abc"` |  | Matches any single character |
+| | `anychar` | `"💞🦀"` || Multi-byte characters work as well | 
+| character::complete::one_of<br>character::streaming::one_of | `one_of("abc")` | `"abc"` |  | Matches one of the provided characters |
+| character::complete::none_of<br>character::streaming::none_of | `none_of("abc")` | `"xyab"` |  | Matches a single character that is anything but the provided characters |
 
 ### Sequence of bytes or characters parsers
 
@@ -48,24 +50,35 @@ These parsers will return a slice of bytes or characters. Those suffixed with `0
 | bytes::complete::is_not<br>bytes::streaming::is_not | `is_not("cd")` | `"ababc"` |  | Matches a sequence of none of the characters passed as arguments |
 | character::complete::alpha0<br>character::streaming::alpha0 | `alpha0` | `"abc123"` |  | Matches zero or more alphabetical ASCII characters (`a-zA-Z`) |
 | character::complete::alpha1<br>character::streaming::alpha1 | `alpha1` | `"abc123"` |  | Matches one or more alphabetical ASCII characters (`a-zA-Z`) |
-|  | `alpha0` | `"123abc"` |  | Because it is allowed to return an empty string, this does not error. |
-|  | `alpha1` | `"123abc"` |  | This however does error, because there must be at least one alphabetical ASCII character. |
-|  | `alpha1` | `"ααα"` |  | Only ASCII counts for these, not all of the unicode alphabetical characters. |
+| | `alpha0` | `"123abc"` |  | Because it is allowed to return an empty string, this does not error |
+| | `alpha1` | `"123abc"` |  | This however does error, because there must be at least one alphabetical ASCII character |
+| | `alpha1` | `"ααα"` |  | Only ASCII counts for these, not all of the unicode alphabetical characters. (These are Greek Alphas.) |
 | character::complete::digit0<br>character::streaming::digit0 | `digit0` | `"123abc"` |  | Matches zero or more numerical ASCII characters (`0-9`) |
 | character::complete::digit1<br>character::streaming::digit1 | `digit1` | `"123abc"` |  | Matches one or more numerical ASCII characters (`0-9`) |
-|  | `digit0` | `"abc123"` |  | Because it is allowed to return an empty string, this does not error. |
-|  | `digit1` | `"abc123"` |  | This however does error, because there must be at least one numerical ASCII character. |
+| | `digit0` | `"abc123"` |  | Because it is allowed to return an empty string, this does not error |
+| | `digit1` | `"abc123"` |  | This however does error, because there must be at least one numerical ASCII character |
+| character::complete::alphanumeric0<br>character::streaming::alphanumeric0 | `alphanumeric0` | `"abc123"` |  | Matches zero or more alphanumeric ASCII characters (`a-zA-Z0-9`) |
+| character::complete::alphanumeric1<br>character::streaming::alphanumeric1 | `alphanumeric1` | `"abc123"` |  | Matches one or more alphanumeric ASCII characters (`a-zA-Z0-9`) |
+| | `alphanumeric0` | `"&abc123"` |  | Because it is allowed to return an empty string, this does not error |
+| | `alphanumeric1` | `"&abc123"` |  | This however does error, because there must be at least one alphanumeric ASCII character |
+| character::complete::hex_digit0<br>character::streaming::hex_digit0 | `hex_digit0` | `"123abcghi"` |  | Matches zero or more hexadecimal ASCII characters (`0-9a-fA-F`) |
+| character::complete::hex_digit1<br>character::streaming::hex_digit1 | `hex_digit1` | `"123abcghi"` |  | Matches one or more hexadecimal ASCII characters (`0-9a-fA-F`) |
 | bytes::complete::tag<br>bytes::streaming::tag<br>bits::complete::tag<br>bits::streaming::tag | `tag("hello")` | `"hello world"` |  | Recognizes a specific suite of characters, bytes, or bits |
 | bytes::complete::tag_no_case<br>bytes::streaming::tag_no_case | `tag_no_case("hello")` | `"HeLLo World"` |  | Recognizes a specific suite of characters, in a case insensitive manner |
+| | `tag_no_case("γειά")` | `"Γειά Κόσμο"` | | This also works with non-ASCII characters. A `γ` is a lowercase `Γ`. (Greek Gamma) |
+| character::complete::newline<br>character::streaming::newline | `newline` | `"\nhello"` |  | Matches a newline character, known as `\n` or `LF` |
+| character::complete::crlf<br>character::streaming::crlf | `crlf` | `"\r\nhello"` |  | Matches a carriage return followed by a newline, known as `\r\n` or `CRLF` |
+| character::complete::line_ending<br>character::streaming::line_ending | `line_ending` | `"\r\nhello"` |  | Matches an end of line, either Unix style (`\n` or `LF`) or Windows style (`\r\n` AKA `CRLF`) |
+| | `line_ending` | `"\nhello"` |  | Basically `line_ending` is the same as [`alt((crlf, newline))`](alt), but has a better performance | 
 | bytes::complete::take<br>bytes::streaming::take<br>bits::complete::take<br>bits::streaming::take | `take(4u8)` | `"hello"` |  | Takes a specific number of characters, bytes, or bits |
 | bytes::complete::take_while<br>bytes::streaming::take_while<br>bytes::complete::take_while1<br>bytes::streaming::take_while1 | `take_while(\|c\| c as u8 > 64)` | `"abc123"` |  | Returns the longest consecutive list of bytes for which the provided function returns true. `take_while1` does the same, but must return at least one character |
-| bytes::complete::take_while_m_n<br>bytes::streaming::take_while_m_n | `take_while_m_n(4, 5, \|c\| is_alphanumeric(c as u8))` | `"abcd123"` |  | Like `take_while`, but with a minimum and maximum length for the match. |
+| bytes::complete::take_while_m_n<br>bytes::streaming::take_while_m_n | `take_while_m_n(4, 5, \|c\| is_alphanumeric(c as u8))` | `"abcd123"` |  | Like `take_while`, but with a minimum and maximum length for the match |
 |  | `take_while_m_n(4, 5, \|c\| is_alphanumeric(c as u8))` | `"abcd-123"` |  |  |
-| bytes::complete::take_till<br>bytes::streaming::take_till<br>bytes::complete::take_till1<br>bytes::streaming::take_till1 | `take_till(\|c\| c as u8 <= 64)` | `"abc123"` |  | Returns the longest list of consecutive bytes for which the provided function returns false. `take_till1` does the same, but must return at least one character. Basically `take_till` is the same as `take_while` but with the result of the provided function negated. |
+| bytes::complete::take_till<br>bytes::streaming::take_till<br>bytes::complete::take_till1<br>bytes::streaming::take_till1 | `take_till(\|c\| c as u8 <= 64)` | `"abc123"` |  | Returns the longest list of consecutive bytes for which the provided function returns false. `take_till1` does the same, but must return at least one character. Basically `take_till` is the same as `take_while` but with the result of the provided function negated |
 | bytes::complete::take_until<br>bytes::streaming::take_until<br>bytes::complete::take_until1<br>bytes::streaming::take_until1 | `take_until("world")` | `"Hello world"` |  | Returns the longest list of bytes or characters until the provided tag is found. `take_until1` does the same, but must return at least one character |
 | bytes::complete::escaped<br>bytes::streaming::escaped | `escaped(digit1, '\\', one_of(r#""n\"#))` | `r#"12\"34"#` |  | XXX: no idea why this is useful |
 |  | `escaped(digit1, '\\', one_of(r#""n\"#))` | `r#"12"34"#` |  |  |
-| bytes::complete::escaped_transform<br>bytes::streaming::escaped_transform | `escaped_transform(alpha1, '\\', value("n", tag("n")))` | `r#"ab\ncd"#` |  | XXX: no idea why this is useful |
+| bytes::complete::escaped_transform<br>bytes::streaming::escaped_transform | `escaped_transform(alpha1, '\\', value("n", tag("n")))` | `r"ab\ncd"` |  | XXX: no idea why this is useful |
 
 ## General combinators
 
@@ -73,8 +86,8 @@ These parsers will return a slice of bytes or characters. Those suffixed with `0
 |---|---|---|---|---|
 | combinator::value | `value(1234, alpha1)` | `"abc789def"` |  | Returns the provided value if the parser succeeds |
 | combinator::map | `map(digit1, \|s: &str\| s.parse::<u8>().unwrap())` | `"123abc"` |  | Maps a function on the result of a parser |
-| combinator::map_opt | `map_opt(digit1, \|s: &str\| s.parse::<u8>().ok())` | `"123abc"` |  | Same as `map()` but requires the function to return an `Option`. |
-| combinator::map_res | `map_res(digit1, \|s: &str\| s.parse::<u8>())` | `"123abc"` |  | Same as `map()` but requires the function to return an `Result`. |
+| combinator::map_opt | `map_opt(digit1, \|s: &str\| s.parse::<u8>().ok())` | `"123abc"` |  | Same as `map()` but requires the function to return an `Option` |
+| combinator::map_res | `map_res(digit1, \|s: &str\| s.parse::<u8>())` | `"123abc"` |  | Same as `map()` but requires the function to return an `Result` |
 | combinator::flat_map | `flat_map(u8, take)` | `&[2, 90, 91, 92, 93][..]` |  | Apply the first parser, then use its output as the argument for the second parser and apply that to the rest of the input. In this example `u8` reads a single byte as an unsigned integer, then makes that the argument to `take` causing it to read the next 2 bytes |
 | combinator::map_parser | `map_parser(take(5u8), digit1)` | `"123abc"` |  | Apply the second parser on the result of the first parser |
 | combinator::not | `not(alpha1)` | `"123"` |  | Succeeds if the child parser returns an error |
@@ -111,7 +124,7 @@ These parsers will return a slice of bytes or characters. Those suffixed with `0
 
 | combinator | usage | input | output | description |
 |---|---|---|---|---|
-| multi::count | `count(take(2u8), 3)` | `"abcdefgh"` |  | Applies the child parser a specified number of timesand returns the list of results in a `Vec` |
+| multi::count | `count(take(2u8), 3)` | `"abcdefgh"` |  | Applies the child parser a specified number of times and returns the list of results in a `Vec` |
 | multi::many0<br>multi::many1 | `many0(tag("ab"))` | `"abababc"` |  | Applies the parser 0 or more times and returns the list of results in a `Vec`. `many1` does the same operation but must return at least one element |
 | multi::many_m_n | `many_m_n(2, 2, tag("ab"))` | `"ababc"` |  | Applies the parser at least `m` and at most `n` times and returns the list of results in a `Vec` |
 | multi::many_till | `many_till(tag("ab"), tag("ef"))` | `"ababefg"` |  | Applies the first parser until the second applies. Returns a tuple containing the list of results from the first in a `Vec` and the result of the second |
@@ -174,7 +187,7 @@ fn number(input: &str) -> IResult<&str, usize> {
 | combinator | usage | input | output | description |
 |---|---|---|---|---|
 | number::complete::double<br>number::streaming::double<br>number::complete::float<br>number::streaming::float | `double` | `"123E-02"` |  | Recognizes floating point number in a byte string and returns an `f64`.  `float` does the same for `f32` |
-| number::complete::recognize_float<br>number::streaming::recognize_float | `recognize_float` | `"123E-02"` |  | Recognizes floating point number in a byte string and returns the corresponding slice. |
+| number::complete::recognize_float<br>number::streaming::recognize_float | `recognize_float` | `"123E-02"` |  | Recognizes floating point number in a byte string and returns the corresponding slice |
 | number::complete::hex_u32<br>number::streaming::hex_u32 | `hex_u32` | `b"abcxyz"` |  | Recognizes hex-encoded `u32` |
 
 ### Binary to number

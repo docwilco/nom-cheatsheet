@@ -1,0 +1,5 @@
+[package]
+name = "nom-cheatsheet-shared"
+version = "0.1.0"
+authors = ["Rogier 'DocWilco' Mulhuijzen <github@bsdchicks.com>"]
+edition = "2021"

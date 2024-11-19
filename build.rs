@@ -1,17 +1,17 @@
 use itertools::Itertools;
 use nom::{
-    bytes::complete::{tag, take_until},
-    character::complete::{char, line_ending, space0},
+    bytes::complete::{is_a, tag, take_until},
+    character::complete::{line_ending, space0},
     combinator::recognize,
     multi::many1,
     sequence::tuple,
     IResult,
 };
-use std::io::Result;
+use nom_cheatsheet_shared::markdown_format_code;
 use std::{
     env,
     fs::{read_to_string, File},
-    io::Write,
+    io::{Result, Write},
     path::Path,
 };
 
@@ -28,9 +28,16 @@ struct Combinator<'a> {
 }
 
 fn parse_code(input: &str) -> IResult<&str, &str> {
-    let (input, _) = char('`')(input)?;
-    let (input, code) = take_until("`")(input)?;
-    let (input, _) = char('`')(input)?;
+    let (input, backticks) = is_a("`")(input)?;
+    let (input, code) = take_until(backticks)(input)?;
+    let (input, _) = tag(backticks)(input)?;
+    // Strip a single space from the beginning and the end of the code,
+    // but only if they're both there. If only one is there, leave it.
+    let code = if code.len() >= 2 && code.starts_with(' ') && code.ends_with(' ') {
+        &code[1..code.len() - 1]
+    } else {
+        code
+    };
     Ok((input, code))
 }
 
@@ -183,21 +190,32 @@ fn main() -> Result<()> {
             // Some examples need explicit types in the let statement, they will
             // start with "let output", the rest don't for brevity.
             let usage = combinator.usage.to_string();
+            writeln!(&mut fnmain, "let input = {input};")?;
             let assignment: String = if usage.starts_with("let output") {
                 format!("{usage}({input});\n")
             } else {
-                format!("let output: IResult<_, _> = {usage}({input});\n")
+                format!("let output: IResult<_, _> = {usage}(input);\n")
             };
             let assignment = assignment.replace("\\|", "|");
 
             fnmain.write_all(assignment.as_bytes())?;
 
-            let usage = usage.replace('{', "{{");
-            let usage = usage.replace('}', "}}");
+            // Make sure that output is properly escaped
             writeln!(
                 &mut fnmain,
-                r#####"writeln!(markdown, r####"| {} | `{}` | `{}` | `{{:?}}` | {} |"####, output)?;"#####,
-                urls, usage, combinator.input, combinator.description,
+                r#"let output = format_iresult(input, &output);"#
+            )?;
+            // Escape braces in the usage and input strings
+            let usage = markdown_format_code(&usage);
+            let usage = usage.replace('{', "{{");
+            let usage = usage.replace('}', "}}");
+            let input = markdown_format_code(combinator.input);
+            let input = input.replace('{', "{{");
+            let input = input.replace('}', "}}");
+            writeln!(
+                &mut fnmain,
+                r#####"writeln!(markdown, r####"| {} | {} | {} | {{output}} | {} |"####)?;"#####,
+                urls, usage, input, combinator.description,
             )?;
         }
     }

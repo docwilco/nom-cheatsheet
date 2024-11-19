@@ -1,24 +1,114 @@
-use std::fs::File;
-use std::io::{Result, Write};
-use std::path::Path;
-use std::str;
-
-use comrak::plugins::syntect::SyntectAdapterBuilder;
-use nom::number::Endianness;
-use nom::{character::is_alphanumeric, IResult};
-
-use comrak::{markdown_to_html_with_plugins, Options, Plugins};
-use syntect::highlighting::ThemeSet;
-use syntect::html::{css_for_theme_with_class_style, ClassStyle};
+use comrak::{
+    markdown_to_html_with_plugins, plugins::syntect::SyntectAdapterBuilder, Options, Plugins,
+};
+use nom::{character::is_alphanumeric, number::Endianness, IResult};
+use nom_cheatsheet_shared::markdown_format_code;
+use std::{
+    fs::File,
+    io::{BufWriter, Result, Write},
+    path::Path,
+    str,
+};
+use syntect::{
+    highlighting::ThemeSet,
+    html::{css_for_theme_with_class_style, ClassStyle},
+};
 
 include! {concat!(env!("OUT_DIR"), "/uses.rs")}
+
+pub trait SubsliceOffset {
+    /** 
+    Returns the index of the first character of the subslice in the original slice.
+
+    # Example
+    ```
+    let string = "a\nb\nc";
+    let lines: Vec<&str> = string.lines().collect();
+    assert_eq!(string.subslice_offset(lines[0]), Some(0));
+    assert_eq!(string.subslice_offset(lines[1]), Some(2));
+    assert_eq!(string.subslice_offset(lines[2]), Some(4));
+    assert_eq!(string.subslice_offset("other"), None);
+    assert_eq!(string.subslice_offset("a"), None);
+    ```
+    */
+    fn subslice_offset_bytes(&self, subslice: &Self) -> Option<usize>;
+}
+
+impl SubsliceOffset for str {
+    fn subslice_offset_bytes(&self, subslice: &str) -> Option<usize> {
+        let self_ptr = self.as_ptr() as usize;
+        let subslice_ptr = subslice.as_ptr() as usize;
+        if subslice_ptr < self_ptr || subslice_ptr > self_ptr.checked_add(self.len())? {
+            return None;
+        }
+        // This is safe because we've already checked that subslice_ptr is never
+        // smaller than self_ptr.
+        Some(subslice_ptr - self_ptr)
+    }
+}
+
+impl SubsliceOffset for &str {
+    fn subslice_offset_bytes(&self, subslice: &Self) -> Option<usize> {
+        (*self).subslice_offset_bytes(*subslice)
+    }
+}
+
+impl SubsliceOffset for [u8] {
+    fn subslice_offset_bytes(&self, subslice: &Self) -> Option<usize> {
+        let self_ptr = self.as_ptr() as usize;
+        let subslice_ptr = subslice.as_ptr() as usize;
+        if subslice_ptr < self_ptr || subslice_ptr > self_ptr.checked_add(self.len())? {
+            return None;
+        }
+        // This is safe because we've already checked that subslice_ptr is never
+        // smaller than self_ptr.
+        Some(subslice_ptr - self_ptr)
+    }
+}
+
+impl SubsliceOffset for &[u8] {
+    fn subslice_offset_bytes(&self, subslice: &Self) -> Option<usize> {
+        (*self).subslice_offset_bytes(*subslice)
+    }
+}
 
 fn number(input: &str) -> IResult<&str, usize> {
     map(digit1, |s: &str| s.parse().unwrap())(input)
 }
 
+// Just to make the example compile
 fn my_alpha1(input: &str) -> IResult<&str, &str> {
     nom::character::complete::alpha1(input)
+}
+
+fn format_iresult<I, O>(input: I, result: &IResult<I, O>) -> String
+where
+    I: std::fmt::Debug + SubsliceOffset,
+    O: std::fmt::Debug,
+{
+    match result {
+        Ok((remainder, value)) => {
+            let value = markdown_format_code(&format!("{:?}", value));
+            let remainder = markdown_format_code(&format!("{:?}", remainder));
+            format!("Result: {value}<br>Remainder: {remainder}")
+        }
+        Err(e) => match e {
+            nom::Err::Incomplete(needed) => match needed {
+                nom::Needed::Size(size) => format!("Incomplete<br>Needed: {size} items"),
+                nom::Needed::Unknown => "Incomplete<br>Needed: unknown".to_string(),
+            },
+            nom::Err::Error(nom::error::Error { input: location, code })
+            | nom::Err::Failure(nom::error::Error { input: location, code }) => {
+                let kind = match e {
+                    nom::Err::Error(_) => "Error",
+                    nom::Err::Failure(_) => "Failure",
+                    _ => unreachable!(),
+                };
+                let offset = input.subslice_offset_bytes(location).unwrap();
+                format!("{kind}<br>Byte offset: {offset}<br>Code: {code:?}")
+            }
+        },
+    }
 }
 
 fn main() -> Result<()> {
@@ -26,9 +116,9 @@ fn main() -> Result<()> {
 
     include!(concat!(env!("OUT_DIR"), "/main.rs"));
 
-    let markdown_file = Path::new(concat!(env!("OUT_DIR"), "/nom-cheatsheet.md"));
-    println!("{:?}", markdown_file);
-    let mut markdown_file = File::create(markdown_file)?;
+    let markdown_path = Path::new(concat!(env!("OUT_DIR"), "/nom-cheatsheet.md"));
+    println!("Markdown file: {markdown_path:?}");
+    let mut markdown_file = BufWriter::new(File::create(markdown_path)?);
     markdown_file.write_all(&markdown)?;
 
     let mut options = Options::default();
@@ -40,11 +130,11 @@ fn main() -> Result<()> {
     let html =
         markdown_to_html_with_plugins(str::from_utf8(&markdown).unwrap(), &options, &plugins);
 
-    let html_file = Path::new(concat!(env!("OUT_DIR"), "/nom-cheatsheet.html"));
-    println!("{:?}", html_file);
+    let html_path = Path::new(concat!(env!("OUT_DIR"), "/nom-cheatsheet.html"));
+    println!("HTML file: {html_path:?}");
     // Replace \ with / in the path
-    let html_file = html_file.to_str().unwrap().replace("\\", "/");
-    println!("file:///{}", html_file);
+    let html_path = html_path.to_str().unwrap().replace('\\', "/");
+    println!("URL: file:///{html_path}");
 
     let themeset = ThemeSet::load_defaults();
     let dark_theme = &themeset.themes["Solarized (dark)"];
@@ -52,32 +142,29 @@ fn main() -> Result<()> {
     let light_theme = &themeset.themes["Solarized (light)"];
     let css_light = css_for_theme_with_class_style(light_theme, ClassStyle::Spaced).unwrap();
 
-    let mut html_file = File::create(html_file)?;
+    let mut html_file = BufWriter::new(File::create(html_path)?);
     html_file.write_all(
-        r##"<!DOCTYPE html>
+        r#"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Nom Cheatsheet</title>
     <style>
-"##
+"#
         .as_bytes(),
     )?;
     html_file.write_all(include_bytes!("github-markdown.css"))?;
-    html_file.write_all(
-        r##"@media (prefers-color-scheme: dark) {"##
-            .as_bytes())?;
+    html_file.write_all(r"@media (prefers-color-scheme: dark) {".as_bytes())?;
     html_file.write_all(css_dark.as_bytes())?;
     html_file.write_all(
-        r##"}
-@media (prefers-color-scheme: light) {"##
-            .as_bytes())?;
+        r"}
+@media (prefers-color-scheme: light) {"
+            .as_bytes(),
+    )?;
     html_file.write_all(css_light.as_bytes())?;
+    html_file.write_all(r"}".as_bytes())?;
     html_file.write_all(
-        r##"}"##
-            .as_bytes())?;
-    html_file.write_all(
-        r##"
+        r#"
 
 .markdown-body {
     margin: 0 auto;
@@ -93,21 +180,17 @@ fn main() -> Result<()> {
 </head>
 <body class="markdown-body">
 <article>
-"##
+"#
         .as_bytes(),
     )?;
     html_file.write_all(html.as_bytes())?;
     html_file.write_all(
-        r##"</article>
+        "</article>
 </body>
 </html>
-"##
+"
         .as_bytes(),
     )?;
 
-//    let css_path = Path::new(concat!(env!("OUT_DIR"), "/syntax.css"));
-//    let mut css_file = File::create(css_path)?;
-//    css_file.write_all(css_dark.as_bytes())?;
-//    println!("{:?}", css_path);
     Ok(())
 }
