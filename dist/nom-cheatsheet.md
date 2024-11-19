@@ -1,6 +1,9 @@
 # Nom cheatsheet
 
-This is inspired by [`choosing_a_combinator.md`](https://github.com/Geal/nom/blob/master/doc/choosing_a_combinator.md "test") in that it collects a bunch of the available things in one page and shows short examples of how each works.
+This is inspired by [`choosing_a_combinator.md`](https://github.com/Geal/nom/blob/master/doc/choosing_a_combinator.md) in that it collects a bunch of the available things in one page and shows short examples of how each works.
+
+
+
 
 ## Quick introduction to Nom
 

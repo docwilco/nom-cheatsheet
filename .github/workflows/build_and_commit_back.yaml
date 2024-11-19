@@ -26,7 +26,17 @@ jobs:
     - name: Build
       run: cargo build --verbose
 
+    - name: Check for changes in dist
+      id: check_changes
+      run: |
+        if [ -n "$(git status --porcelain dist)" ]; then
+          echo "changes=true" >> $GITHUB_ENV
+        else
+          echo "changes=false" >> $GITHUB_ENV
+        fi
+
     - name: Commit and push changes
+      if: env.changes == 'true'
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
