@@ -116,7 +116,7 @@ fn main() -> Result<()> {
 
     include!(concat!(env!("OUT_DIR"), "/main.rs"));
 
-    let markdown_path = Path::new(concat!(env!("OUT_DIR"), "/nom-cheatsheet.md"));
+    let markdown_path = Path::new("dist/nom-cheatsheet.md");
     println!("Markdown file: {markdown_path:?}");
     let mut markdown_file = BufWriter::new(File::create(markdown_path)?);
     markdown_file.write_all(&markdown)?;
@@ -130,7 +130,7 @@ fn main() -> Result<()> {
     let html =
         markdown_to_html_with_plugins(str::from_utf8(&markdown).unwrap(), &options, &plugins);
 
-    let html_path = Path::new(concat!(env!("OUT_DIR"), "/nom-cheatsheet.html"));
+    let html_path = Path::new("dist/nom-cheatsheet.html");
     println!("HTML file: {html_path:?}");
     // Replace \ with / in the path
     let html_path = html_path.to_str().unwrap().replace('\\', "/");
