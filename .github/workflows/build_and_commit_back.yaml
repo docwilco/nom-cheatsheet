@@ -24,7 +24,9 @@ jobs:
         override: true
 
     - name: Build
-      run: cargo build --verbose
+      run: |
+        cargo build --release
+        cargo run --release
 
     - name: Commit and push changes
       run: |
