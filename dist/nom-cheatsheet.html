@@ -1696,26 +1696,90 @@ font-weight: bold;
 </head>
 <body class="markdown-body">
 <article>
-<h1>Nom cheatsheet</h1>
+<h1><a href="#nom-cheatsheet" aria-hidden="true" class="anchor" id="nom-cheatsheet"></a>Nom cheatsheet</h1>
 <p>This is inspired by <a href="https://github.com/Geal/nom/blob/master/doc/choosing_a_combinator.md" title="test"><code>choosing_a_combinator.md</code></a> in that it collects a bunch of the available things in one page and shows short examples of how each works.</p>
-<h2>Quick introduction to Nom</h2>
+<h2><a href="#quick-introduction-to-nom" aria-hidden="true" class="anchor" id="quick-introduction-to-nom"></a>Quick introduction to Nom</h2>
 <p>For those new to Nom, most parsers and combinators actually return a function, and said function is what the input is fed to. This is what allows you to combine a bunch of parsers using combinators. This causes syntax that looks slightly odd when you're not used to it. For example, the <code>char</code> parser used directly would look like this:</p>
 <pre class="syntax-highlighting"><code class="language-rust"><span class="source rust"><span class="storage type rust">let</span> <span class="meta group rust"><span class="punctuation section group begin rust">(</span>input<span class="punctuation separator rust">,</span> my_char</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=</span> <span class="storage type rust">char</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted single rust"><span class="punctuation definition string begin rust">&#39;</span>a<span class="punctuation definition string end rust">&#39;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
 </span></code></pre>
-<p><code>input</code> is a separate column in the examples below, since it's not an argument to the function, but an argument to the result of the function.</p>
-<p>The <code>output</code> column likewise is the result of calling the resulting function with the input. Feel free to re-read that last sentence a couple of time.</p>
-<p>If the parser or combinator succeeded, the result will be an <code>Ok()</code> containing a tuple of the remaining input and then the actual result of the parser or combinator. The remaining input is passed back like that so that it can then be used with other parsers or combinators.</p>
+<p>As you can see, there's two sets of parentheses after <code>char</code>. The first set is the arguments to the <code>char</code> function, and makes a new function that is a parser that only accepts a single <code>a</code>. Then the second set is the actual call to that parser with the input. The <code>?</code> at the end is Rust's typical way of handling errors, and is used to return early if the parser fails. Nom parsers use <code>IResult</code> as their return type, which is a rather specific type alias of <code>Result</code>.</p>
+<p>In all the examples in the tables below, <code>input</code> is a separate column since it's not an argument to the function, but an argument to the result of the function.</p>
+<p>The <code>output</code> column likewise is the result of calling the parser, but for <code>Ok()</code> results, the result and the remaining input are shown in a nice way, instead of <code>Ok((&quot;remaining input&quot;, &quot;result&quot;))</code>, which can be a bit hard to read.</p>
+<p>If the parser or combinator succeeded, the result will be an <code>Ok()</code> containing a tuple of the remaining input and then the actual result of the parser or combinator. The remaining input is passed back like that so that it can then be used with other parsers or combinators. That is why the <code>input</code> variable is rebound in the examples above.</p>
 <p>If you are writing a function that takes in input and returns a struct, you should write it so that it returns an <code>IResult</code> with the remaining input as well. This then allows you to use things like the <code>many0</code> combinator with your function to easily get a <code>Vec</code> of your custom structs.</p>
-<pre class="syntax-highlighting"><code class="language-rust"><span class="source rust">
+<pre class="syntax-highlighting"><code class="language-rust"><span class="source rust"><span class="keyword other rust">use</span> <span class="meta path rust">nom<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+    <span class="meta path rust">character<span class="punctuation accessor rust">::</span></span><span class="meta path rust">complete<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span><span class="storage type rust">char</span><span class="punctuation separator rust">,</span> <span class="storage type rust">i32</span><span class="punctuation separator rust">,</span> line_ending<span class="punctuation separator rust">,</span> newline</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span>
+    <span class="meta path rust">multi<span class="punctuation accessor rust">::</span></span>separated_list0<span class="punctuation separator rust">,</span>
+    <span class="meta path rust">sequence<span class="punctuation accessor rust">::</span></span>separated_pair<span class="punctuation separator rust">,</span>
+    IResult<span class="punctuation separator rust">,</span>
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation terminator rust">;</span>
+
+<span class="meta annotation rust"><span class="punctuation definition annotation rust">#</span><span class="punctuation section group begin rust">[</span><span class="variable annotation rust">derive</span><span class="meta annotation parameters rust"><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span></span><span class="meta annotation parameters rust"><span class="meta group rust">Debug<span class="punctuation separator rust">,</span> Eq<span class="punctuation separator rust">,</span> PartialEq</span></span><span class="meta annotation parameters rust"><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="punctuation section group end rust">]</span></span>
+<span class="meta struct rust"><span class="storage type struct rust">struct</span> </span><span class="meta struct rust"><span class="entity name struct rust">Point</span> </span><span class="meta struct rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+    <span class="variable other member rust">x</span><span class="punctuation separator rust">:</span> <span class="storage type rust">i32</span>,
+    <span class="variable other member rust">y</span><span class="punctuation separator rust">:</span> <span class="storage type rust">i32</span>,
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
+
+<span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">parse_point</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span><span class="variable parameter rust">input</span><span class="punctuation separator rust">:</span> <span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust"> <span class="meta function return-type rust"><span class="punctuation separator rust">-&gt;</span> <span class="meta generic rust">IResult<span class="punctuation definition generic begin rust">&lt;</span><span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span>, Point<span class="punctuation definition generic end rust">&gt;</span></span></span> </span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> When you call a parser like `i32`, it will return a tuple of the
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> remaining input and the parsed value. If you unpack the `IResult` above,
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> you&#39;ll see `parse_point` also returns a tuple of the remaining input and
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> the parsed value
+</span>    <span class="storage type rust">let</span> <span class="meta group rust"><span class="punctuation section group begin rust">(</span>input<span class="punctuation separator rust">,</span> x</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=</span> <span class="storage type rust">i32</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> Because input is rebound to the remaining input in the line above, the
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> following line will parse and consume the comma. Since we don&#39;t care
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> about the comma, we use the `_` to ignore it
+</span>    <span class="storage type rust">let</span> <span class="meta group rust"><span class="punctuation section group begin rust">(</span>input<span class="punctuation separator rust">,</span> <span class="keyword operator rust">_</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=</span> <span class="storage type rust">char</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted single rust"><span class="punctuation definition string begin rust">&#39;</span>,<span class="punctuation definition string end rust">&#39;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> And now input is only the y value
+</span>    <span class="storage type rust">let</span> <span class="meta group rust"><span class="punctuation section group begin rust">(</span>input<span class="punctuation separator rust">,</span> y</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=</span> <span class="storage type rust">i32</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> Finally, we construct our return value, and return it alongside the
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> remaining input
+</span>    <span class="support type rust">Ok</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input<span class="punctuation separator rust">,</span> Point <span class="meta block rust"><span class="punctuation section block begin rust">{</span> x<span class="punctuation separator rust">,</span> y </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
+
+<span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">main</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust"> </span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+    <span class="storage type rust">let</span> input <span class="keyword operator rust">=</span> <span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>123,456<span class="constant character escape rust">\n</span>789,1011<span class="punctuation definition string end rust">&quot;</span></span><span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> Here we construct a parser that will parse a list of `Point`s separated
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> by `line_ending`.
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span>
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> Note that the `separated_list0` takes parsers as arguments, so we don&#39;t
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> give `line_ending` or `parse_point` any arguments.
+</span>    <span class="storage type rust">let</span> <span class="storage modifier rust">mut</span> parse_points <span class="keyword operator rust">=</span> <span class="support function rust">separated_list0</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>line_ending<span class="punctuation separator rust">,</span> parse_point</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> <span class="meta group rust"><span class="punctuation section group begin rust">(</span>input<span class="punctuation separator rust">,</span> points</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=</span> <span class="support function rust">parse_points</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> `points` is now a `Vec&lt;Point&gt;` containing the two points we parsed
+</span>    <span class="support macro rust">assert_eq!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>
+        points<span class="punctuation separator rust">,</span>
+        <span class="support macro rust">vec!</span><span class="meta group rust"><span class="punctuation section group begin rust">[</span>Point <span class="meta block rust"><span class="punctuation section block begin rust">{</span> x<span class="punctuation separator rust">:</span> <span class="constant numeric integer decimal rust">123</span><span class="punctuation separator rust">,</span> y<span class="punctuation separator rust">:</span> <span class="constant numeric integer decimal rust">456</span> </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span> Point <span class="meta block rust"><span class="punctuation section block begin rust">{</span> x<span class="punctuation separator rust">:</span> <span class="constant numeric integer decimal rust">789</span><span class="punctuation separator rust">,</span> y<span class="punctuation separator rust">:</span> <span class="constant numeric integer decimal rust">1011</span> </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation section group end rust">]</span></span>
+    </span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> And the remaining input should now be empty
+</span>    <span class="support macro rust">assert_eq!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input<span class="punctuation separator rust">,</span> <span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> Or setting up and using a parser in a single line:
+</span>    <span class="storage type rust">let</span> input <span class="keyword operator rust">=</span> <span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>34,56<span class="constant character escape rust">\n</span>21,98<span class="punctuation definition string end rust">&quot;</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> <span class="meta group rust"><span class="punctuation section group begin rust">(</span>input<span class="punctuation separator rust">,</span> points</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=</span> <span class="support function rust">separated_list0</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>newline<span class="punctuation separator rust">,</span> parse_point_concise</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="support macro rust">assert_eq!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>points<span class="punctuation separator rust">,</span> <span class="support macro rust">vec!</span><span class="meta group rust"><span class="punctuation section group begin rust">[</span>Point <span class="meta block rust"><span class="punctuation section block begin rust">{</span> x<span class="punctuation separator rust">:</span> <span class="constant numeric integer decimal rust">34</span><span class="punctuation separator rust">,</span> y<span class="punctuation separator rust">:</span> <span class="constant numeric integer decimal rust">56</span> </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span> Point <span class="meta block rust"><span class="punctuation section block begin rust">{</span> x<span class="punctuation separator rust">:</span> <span class="constant numeric integer decimal rust">21</span><span class="punctuation separator rust">,</span> y<span class="punctuation separator rust">:</span> <span class="constant numeric integer decimal rust">98</span> </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation section group end rust">]</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="support macro rust">assert_eq!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input<span class="punctuation separator rust">,</span> <span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
+
+<span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">parse_point_concise</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span><span class="variable parameter rust">input</span><span class="punctuation separator rust">:</span> <span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust"> <span class="meta function return-type rust"><span class="punctuation separator rust">-&gt;</span> <span class="meta generic rust">IResult<span class="punctuation definition generic begin rust">&lt;</span><span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span>, Point<span class="punctuation definition generic end rust">&gt;</span></span></span> </span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> `separated_pair` is a combinator that takes three parsers, and returns a
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> parser that returns a tuple of the results of the first and third
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> parsers, using the second parser as a separator. This allows us to
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> rewrite `parse_point` as follows:
+</span>    <span class="storage type rust">let</span> <span class="meta group rust"><span class="punctuation section group begin rust">(</span>input<span class="punctuation separator rust">,</span> <span class="meta group rust"><span class="punctuation section group begin rust">(</span>x<span class="punctuation separator rust">,</span> y</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=</span> <span class="support function rust">separated_pair</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="storage type rust">i32</span><span class="punctuation separator rust">,</span> <span class="storage type rust">char</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted single rust"><span class="punctuation definition string begin rust">&#39;</span>,<span class="punctuation definition string end rust">&#39;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span> <span class="storage type rust">i32</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> Then we construct our return value, and return it alongside the remaining
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> input.
+</span>    <span class="support type rust">Ok</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input<span class="punctuation separator rust">,</span> Point <span class="meta block rust"><span class="punctuation section block begin rust">{</span> x<span class="punctuation separator rust">,</span> y </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
 </span></code></pre>
-<h2>Basic elements</h2>
+<h2><a href="#basic-elements" aria-hidden="true" class="anchor" id="basic-elements"></a>Basic elements</h2>
 <p>Those are used to recognize the lowest level elements of your grammar, like, &quot;here is a dot&quot;, &quot;here is a number&quot;, &quot;here is a line ending&quot;. These are split up into matching a single byte or character, and matching multiple bytes or characters.</p>
-<h3>Single byte or character parsers</h3>
+<h3><a href="#single-byte-or-character-parsers" aria-hidden="true" class="anchor" id="single-byte-or-character-parsers"></a>Single byte or character parsers</h3>
 <p>All of these parsers will return a single byte or character.</p>
 <table>
 <thead>
 <tr>
-<th>combinator</th>
+<th>parser</th>
 <th>usage</th>
 <th>input</th>
 <th>output</th>
@@ -1774,12 +1838,54 @@ font-weight: bold;
 </tr>
 </tbody>
 </table>
-<h3>Sequence of bytes or characters parsers</h3>
-<p>These parsers will return a slice of bytes or characters. Those suffixed with <code>0</code> can return an empty slice if they match nothing. They usually have variants that are suffixed with <code>1</code> that will refuse to match unless there's at least 1 byte or character they can match.</p>
+<h3><a href="#sequence-of-bytes-or-characters-parsers" aria-hidden="true" class="anchor" id="sequence-of-bytes-or-characters-parsers"></a>Sequence of bytes or characters parsers</h3>
+<p>These parsers will return a slice of bytes or characters. Those suffixed with <code>0</code> can return an empty slice if they match nothing. They usually have variants that are suffixed with <code>1</code> that will refuse to match unless there's at least 1 byte or character they can match. For instance, <code>digit0</code> will match an empty string, but <code>digit1</code> will not:</p>
 <table>
 <thead>
 <tr>
-<th>combinator</th>
+<th>parser</th>
+<th>usage</th>
+<th>input</th>
+<th>output</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.digit0.html">digit0</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.digit0.html">digit0</a></td>
+<td><code>digit0</code></td>
+<td><code>&quot;123abc&quot;</code></td>
+<td>Result: <code>&quot;123&quot;</code><br>Remainder: <code>&quot;abc&quot;</code></td>
+<td>Matches zero or more numerical ASCII characters (<code>0-9</code>)</td>
+</tr>
+<tr>
+<td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.digit1.html">digit1</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.digit1.html">digit1</a></td>
+<td><code>digit1</code></td>
+<td><code>&quot;123abc&quot;</code></td>
+<td>Result: <code>&quot;123&quot;</code><br>Remainder: <code>&quot;abc&quot;</code></td>
+<td>Matches one or more numerical ASCII characters (<code>0-9</code>)</td>
+</tr>
+<tr>
+<td></td>
+<td><code>digit0</code></td>
+<td><code>&quot;abc123&quot;</code></td>
+<td>Result: <code>&quot;&quot;</code><br>Remainder: <code>&quot;abc123&quot;</code></td>
+<td>Because it is allowed to return an empty string, this does not error</td>
+</tr>
+<tr>
+<td></td>
+<td><code>digit1</code></td>
+<td><code>&quot;abc123&quot;</code></td>
+<td>Error<br>Byte offset: 0<br>Code: Digit</td>
+<td>This however does error, because there must be at least one numerical ASCII character</td>
+</tr>
+</tbody>
+</table>
+<p>This goes for all the <code>0</code> and <code>1</code> suffixed parsers below:</p>
+<table>
+<thead>
+<tr>
+<th>parser</th>
 <th>usage</th>
 <th>input</th>
 <th>output</th>
@@ -1817,20 +1923,6 @@ font-weight: bold;
 </tr>
 <tr>
 <td></td>
-<td><code>alpha0</code></td>
-<td><code>&quot;123abc&quot;</code></td>
-<td>Result: <code>&quot;&quot;</code><br>Remainder: <code>&quot;123abc&quot;</code></td>
-<td>Because it is allowed to return an empty string, this does not error</td>
-</tr>
-<tr>
-<td></td>
-<td><code>alpha1</code></td>
-<td><code>&quot;123abc&quot;</code></td>
-<td>Error<br>Byte offset: 0<br>Code: Alpha</td>
-<td>This however does error, because there must be at least one alphabetical ASCII character</td>
-</tr>
-<tr>
-<td></td>
 <td><code>alpha1</code></td>
 <td><code>&quot;ααα&quot;</code></td>
 <td>Error<br>Byte offset: 0<br>Code: Alpha</td>
@@ -1851,46 +1943,18 @@ font-weight: bold;
 <td>Matches one or more numerical ASCII characters (<code>0-9</code>)</td>
 </tr>
 <tr>
-<td></td>
-<td><code>digit0</code></td>
-<td><code>&quot;abc123&quot;</code></td>
-<td>Result: <code>&quot;&quot;</code><br>Remainder: <code>&quot;abc123&quot;</code></td>
-<td>Because it is allowed to return an empty string, this does not error</td>
-</tr>
-<tr>
-<td></td>
-<td><code>digit1</code></td>
-<td><code>&quot;abc123&quot;</code></td>
-<td>Error<br>Byte offset: 0<br>Code: Digit</td>
-<td>This however does error, because there must be at least one numerical ASCII character</td>
-</tr>
-<tr>
 <td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.alphanumeric0.html">alphanumeric0</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.alphanumeric0.html">alphanumeric0</a></td>
 <td><code>alphanumeric0</code></td>
 <td><code>&quot;abc123&quot;</code></td>
-<td>Result: <code>&quot;abc123&quot;</code><br>Remainder: <code>&quot;&quot;</code></td>
+<td>Result: <code>&quot;abc123&quot;</code><br>No remainder</td>
 <td>Matches zero or more alphanumeric ASCII characters (<code>a-zA-Z0-9</code>)</td>
 </tr>
 <tr>
 <td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.alphanumeric1.html">alphanumeric1</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.alphanumeric1.html">alphanumeric1</a></td>
 <td><code>alphanumeric1</code></td>
 <td><code>&quot;abc123&quot;</code></td>
-<td>Result: <code>&quot;abc123&quot;</code><br>Remainder: <code>&quot;&quot;</code></td>
+<td>Result: <code>&quot;abc123&quot;</code><br>No remainder</td>
 <td>Matches one or more alphanumeric ASCII characters (<code>a-zA-Z0-9</code>)</td>
-</tr>
-<tr>
-<td></td>
-<td><code>alphanumeric0</code></td>
-<td><code>&quot;&amp;abc123&quot;</code></td>
-<td>Result: <code>&quot;&quot;</code><br>Remainder: <code>&quot;&amp;abc123&quot;</code></td>
-<td>Because it is allowed to return an empty string, this does not error</td>
-</tr>
-<tr>
-<td></td>
-<td><code>alphanumeric1</code></td>
-<td><code>&quot;&amp;abc123&quot;</code></td>
-<td>Error<br>Byte offset: 0<br>Code: AlphaNumeric</td>
-<td>This however does error, because there must be at least one alphanumeric ASCII character</td>
 </tr>
 <tr>
 <td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.hex_digit0.html">hex_digit0</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.hex_digit0.html">hex_digit0</a></td>
@@ -1910,21 +1974,21 @@ font-weight: bold;
 <td>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.tag.html">tag</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.tag.html">tag</a><br>bits::complete::<a href="https://docs.rs/nom/latest/nom/bits/complete/fn.tag.html">tag</a><br>bits::streaming::<a href="https://docs.rs/nom/latest/nom/bits/streaming/fn.tag.html">tag</a></td>
 <td><code>tag(&quot;hello&quot;)</code></td>
 <td><code>&quot;hello world&quot;</code></td>
-<td>Result: <code>&quot;hello&quot;</code><br>Remainder: <code>&quot; world&quot;</code></td>
+<td>Result: <code>&quot;hello&quot;</code><br>Remainder: <code>&quot;world&quot;</code></td>
 <td>Recognizes a specific suite of characters, bytes, or bits</td>
 </tr>
 <tr>
 <td>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.tag_no_case.html">tag_no_case</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.tag_no_case.html">tag_no_case</a></td>
 <td><code>tag_no_case(&quot;hello&quot;)</code></td>
 <td><code>&quot;HeLLo World&quot;</code></td>
-<td>Result: <code>&quot;HeLLo&quot;</code><br>Remainder: <code>&quot; World&quot;</code></td>
+<td>Result: <code>&quot;HeLLo&quot;</code><br>Remainder: <code>&quot;World&quot;</code></td>
 <td>Recognizes a specific suite of characters, in a case insensitive manner</td>
 </tr>
 <tr>
 <td></td>
 <td><code>tag_no_case(&quot;γειά&quot;)</code></td>
 <td><code>&quot;Γειά Κόσμο&quot;</code></td>
-<td>Result: <code>&quot;Γειά&quot;</code><br>Remainder: <code>&quot; Κόσμο&quot;</code></td>
+<td>Result: <code>&quot;Γειά&quot;</code><br>Remainder: <code>&quot;Κόσμο&quot;</code></td>
 <td>This also works with non-ASCII characters. A <code>γ</code> is a lowercase <code>Γ</code>. (Greek Gamma)</td>
 </tr>
 <tr>
@@ -1932,21 +1996,21 @@ font-weight: bold;
 <td><code>newline</code></td>
 <td><code>&quot;\nhello&quot;</code></td>
 <td>Result: <code>'\n'</code><br>Remainder: <code>&quot;hello&quot;</code></td>
-<td>Matches a newline character, known as <code>\n</code> or <code>LF</code></td>
+<td>Matches a newline character, also known as line feed, <code>\n</code>, or <code>LF</code></td>
 </tr>
 <tr>
 <td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.crlf.html">crlf</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.crlf.html">crlf</a></td>
 <td><code>crlf</code></td>
 <td><code>&quot;\r\nhello&quot;</code></td>
 <td>Result: <code>&quot;\r\n&quot;</code><br>Remainder: <code>&quot;hello&quot;</code></td>
-<td>Matches a carriage return followed by a newline, known as <code>\r\n</code> or <code>CRLF</code></td>
+<td>Matches a carriage return followed by a newline, also known as <code>\r\n</code> or <code>CRLF</code></td>
 </tr>
 <tr>
 <td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.line_ending.html">line_ending</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.line_ending.html">line_ending</a></td>
 <td><code>line_ending</code></td>
 <td><code>&quot;\r\nhello&quot;</code></td>
 <td>Result: <code>&quot;\r\n&quot;</code><br>Remainder: <code>&quot;hello&quot;</code></td>
-<td>Matches an end of line, either Unix style (<code>\n</code> or <code>LF</code>) or Windows style (<code>\r\n</code> AKA <code>CRLF</code>)</td>
+<td>Matches an end of line, either Unix style (<code>\n</code>/<code>LF</code>) or Windows style (<code>\r\n</code>/<code>CRLF</code>)</td>
 </tr>
 <tr>
 <td></td>
@@ -1956,39 +2020,95 @@ font-weight: bold;
 <td>Basically <code>line_ending</code> is the same as <a href="alt"><code>alt((crlf, newline))</code></a>, but has a better performance</td>
 </tr>
 <tr>
+<td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.space0.html">space0</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.space0.html">space0</a></td>
+<td><code>space0</code></td>
+<td><code>&quot; \t\nhello&quot;</code></td>
+<td>Result: <code>&quot; \t&quot;</code><br>Remainder: <code>&quot;\nhello&quot;</code></td>
+<td>Matches zero or more spaces (<code>' '</code>) and tabs (<code>\t</code>)</td>
+</tr>
+<tr>
+<td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.space1.html">space1</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.space1.html">space1</a></td>
+<td><code>space1</code></td>
+<td><code>&quot; \t\nhello&quot;</code></td>
+<td>Result: <code>&quot; \t&quot;</code><br>Remainder: <code>&quot;\nhello&quot;</code></td>
+<td>Matches one or more spaces (<code>' '</code>) and tabs (<code>\t</code>)</td>
+</tr>
+<tr>
+<td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.multispace0.html">multispace0</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.multispace0.html">multispace0</a></td>
+<td><code>multispace0</code></td>
+<td><code>&quot; \t\nhello&quot;</code></td>
+<td>Result: <code>&quot; \t\n&quot;</code><br>Remainder: <code>&quot;hello&quot;</code></td>
+<td>Matches zero or more spaces (<code>' '</code>), tabs (<code>\t</code>), line feeds (<code>\n</code>), and carriage returns (<code>\r</code>)</td>
+</tr>
+<tr>
+<td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.multispace1.html">multispace1</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.multispace1.html">multispace1</a></td>
+<td><code>multispace1</code></td>
+<td><code>&quot; \t\nhello&quot;</code></td>
+<td>Result: <code>&quot; \t\n&quot;</code><br>Remainder: <code>&quot;hello&quot;</code></td>
+<td>Matches one or more spaces (<code>' '</code>), tabs (<code>\t</code>), line feeds (<code>\n</code>), and carriage returns (<code>\r</code>)</td>
+</tr>
+<tr>
 <td>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.take.html">take</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.take.html">take</a><br>bits::complete::<a href="https://docs.rs/nom/latest/nom/bits/complete/fn.take.html">take</a><br>bits::streaming::<a href="https://docs.rs/nom/latest/nom/bits/streaming/fn.take.html">take</a></td>
-<td><code>take(4u8)</code></td>
+<td><code>take(4_u8)</code></td>
 <td><code>&quot;hello&quot;</code></td>
 <td>Result: <code>&quot;hell&quot;</code><br>Remainder: <code>&quot;o&quot;</code></td>
 <td>Takes a specific number of characters, bytes, or bits</td>
 </tr>
 <tr>
 <td>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.take_while.html">take_while</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.take_while.html">take_while</a><br>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.take_while1.html">take_while1</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.take_while1.html">take_while1</a></td>
-<td><code>take_while(|c| c as u8 &gt; 64)</code></td>
+<td><code>take_while(|c| c as u32 &gt; 64)</code></td>
 <td><code>&quot;abc123&quot;</code></td>
 <td>Result: <code>&quot;abc&quot;</code><br>Remainder: <code>&quot;123&quot;</code></td>
-<td>Returns the longest consecutive list of bytes for which the provided function returns true. <code>take_while1</code> does the same, but must return at least one character</td>
+<td>Returns the longest consecutive list of bytes or characters for which the provided function returns true. <code>take_while1</code> does the same, but must return at least one character</td>
+</tr>
+<tr>
+<td></td>
+<td><code>take_while(|c| c &lt; 0x7f)</code></td>
+<td><code>&amp;[0x01, 0x02, 0x03, 0xf0, 0x9f, 0x92, 0x9e]</code></td>
+<td>Result: <code>[1, 2, 3]</code><br>Remainder: <code>&amp;[0xf0, 0x9f, 0x92, 0x9e]</code></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>take_while(|c| c as u32 &gt; 64)</code></td>
+<td><code>&quot;💞🦀⌨&quot;</code></td>
+<td>Result: <code>&quot;💞🦀⌨&quot;</code><br>No remainder</td>
+<td>Be careful with casting <code>char</code> to <code>u8</code>. Casting to <code>u32</code> works as expected</td>
+</tr>
+<tr>
+<td></td>
+<td><code>take_while(|c| c as u8 &gt; 64)</code></td>
+<td><code>&quot;💞🦀⌨&quot;</code></td>
+<td>Result: <code>&quot;💞🦀&quot;</code><br>Remainder: <code>&quot;⌨&quot;</code></td>
+<td>But casting to <code>u8</code> is lossy</td>
 </tr>
 <tr>
 <td>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.take_while_m_n.html">take_while_m_n</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.take_while_m_n.html">take_while_m_n</a></td>
-<td><code>take_while_m_n(4, 5, |c| is_alphanumeric(c as u8))</code></td>
+<td><code>take_while_m_n(4, 5, |c: char| c.is_ascii_alphanumeric())</code></td>
 <td><code>&quot;abcd123&quot;</code></td>
 <td>Result: <code>&quot;abcd1&quot;</code><br>Remainder: <code>&quot;23&quot;</code></td>
 <td>Like <code>take_while</code>, but with a minimum and maximum length for the match</td>
 </tr>
 <tr>
 <td></td>
-<td><code>take_while_m_n(4, 5, |c| is_alphanumeric(c as u8))</code></td>
+<td><code>take_while_m_n(4, 5, |c: char| c.is_ascii_alphanumeric())</code></td>
 <td><code>&quot;abcd-123&quot;</code></td>
 <td>Result: <code>&quot;abcd&quot;</code><br>Remainder: <code>&quot;-123&quot;</code></td>
+<td>In the example above, parsing stops because the upper limit is reached. In this one, the predicate stops being true</td>
+</tr>
+<tr>
 <td></td>
+<td><code>take_while_m_n(4, 5, |c: char| c.is_ascii_alphanumeric())</code></td>
+<td><code>&quot;abc-123&quot;</code></td>
+<td>Error<br>Byte offset: 0<br>Code: TakeWhileMN</td>
+<td>And here the lower limit isn't reached yet when the predicate stops being true</td>
 </tr>
 <tr>
 <td>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.take_till.html">take_till</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.take_till.html">take_till</a><br>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.take_till1.html">take_till1</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.take_till1.html">take_till1</a></td>
-<td><code>take_till(|c| c as u8 &lt;= 64)</code></td>
+<td><code>take_till(|c| c as u32 &lt;= 64)</code></td>
 <td><code>&quot;abc123&quot;</code></td>
 <td>Result: <code>&quot;abc&quot;</code><br>Remainder: <code>&quot;123&quot;</code></td>
-<td>Returns the longest list of consecutive bytes for which the provided function returns false. <code>take_till1</code> does the same, but must return at least one character. Basically <code>take_till</code> is the same as <code>take_while</code> but with the result of the provided function negated</td>
+<td>Returns the longest list of consecutive bytes or characters for which the provided function returns false. <code>take_till1</code> does the same, but must return at least one character. Basically <code>take_till</code> is the same as <code>take_while</code> but with the result of the provided function negated</td>
 </tr>
 <tr>
 <td>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.take_until.html">take_until</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.take_until.html">take_until</a><br>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.take_until1.html">take_until1</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.take_until1.html">take_until1</a></td>
@@ -2001,26 +2121,365 @@ font-weight: bold;
 <td>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.escaped.html">escaped</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.escaped.html">escaped</a></td>
 <td><code>escaped(digit1, '\\', one_of(r#&quot;&quot;n\&quot;#))</code></td>
 <td><code>r#&quot;12\&quot;34&quot;#</code></td>
-<td>Result: <code>&quot;12\\\&quot;34&quot;</code><br>Remainder: <code>&quot;&quot;</code></td>
-<td>XXX: no idea why this is useful</td>
+<td>Result: <code>&quot;12\\\&quot;34&quot;</code><br>No remainder</td>
+<td>Matches a string with escaped characters. The first parser is for regular characters, the second is the control (escape) character, and the third is for the escaped characters. Note that the string is delimited with <code>r#&quot;</code> and <code>&quot;#</code>, so the backslash is in the string.</td>
 </tr>
 <tr>
 <td></td>
 <td><code>escaped(digit1, '\\', one_of(r#&quot;&quot;n\&quot;#))</code></td>
 <td><code>r#&quot;12&quot;34&quot;#</code></td>
 <td>Result: <code>&quot;12&quot;</code><br>Remainder: <code>&quot;\&quot;34&quot;</code></td>
+<td>Note how the <code>&quot;</code> between <code>2</code> and <code>3</code> is not preceded by a <code>\</code> here, and thus parsing ends here</td>
+</tr>
+<tr>
 <td></td>
+<td><code>delimited(char('@'), escaped(is_not(&quot;@;&quot;), ';', one_of(&quot;@;&quot;)), char('@'))</code></td>
+<td><code>&quot;@hello;@world;;@&quot;</code></td>
+<td>Result: <code>&quot;hello;@world;;&quot;</code><br>No remainder</td>
+<td>This is a good example of why <code>escaped</code> is useful. First of all, the value we're looking for is delimited at start and end by a <code>@</code>. But it also contains a <code>@</code> which is escaped by a <code>;</code>. So the normal characters parser says &quot;anything except <code>@</code> and <code>;</code>.&quot; The parsing doesn't stop at the escaped <code>@</code> because it's escaped with the <code>;</code>, and allowed by the third parser. Likewise the <code>;;</code> at the end is allowed as well</td>
+</tr>
+<tr>
+<td></td>
+<td><code>delimited(char('&quot;'), escaped(is_not(r#&quot;&quot;\&quot;#), '\\', one_of(r#&quot;&quot;\&quot;#)), char('&quot;'))</code></td>
+<td><code>r#&quot;&quot;hello\&quot;world\\&quot;&quot;#</code></td>
+<td>Result: <code>&quot;hello\\\&quot;world\\\\&quot;</code><br>No remainder</td>
+<td>This is identical to the previous example, except we use <code>\</code> as the control character, and <code>&quot;</code> as the delimiter. It is just a lot harder to read because of the escaping we have to do to get Rust to grok our strings</td>
+</tr>
+<tr>
+<td></td>
+<td><code>delimited(char('&quot;'), escaped(is_not(&quot;\&quot;\\&quot;), '\\', one_of(&quot;\&quot;\\&quot;)), char('&quot;'))</code></td>
+<td><code>&quot;\&quot;hello\\\&quot;world\\\\\&quot;&quot;</code></td>
+<td>Result: <code>&quot;hello\\\&quot;world\\\\&quot;</code><br>No remainder</td>
+<td>And again, the same as previous but with different notation</td>
+</tr>
+<tr>
+<td></td>
+<td><code>escaped(digit1, '\\', tag(&quot;boop&quot;))</code></td>
+<td><code>r&quot;12\boop34boo&quot;</code></td>
+<td>Result: <code>&quot;12\\boop34&quot;</code><br>Remainder: <code>&quot;boo&quot;</code></td>
+<td>The escaped parser can actually be any parser, so here we're looking for the string <code>boop</code> instead of just a single character</td>
 </tr>
 <tr>
 <td>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.escaped_transform.html">escaped_transform</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.escaped_transform.html">escaped_transform</a></td>
-<td><code>escaped_transform(alpha1, '\\', value(&quot;n&quot;, tag(&quot;n&quot;)))</code></td>
+<td><code>escaped_transform(alpha1, '\\', value(&quot;n&quot;, char('n')))</code></td>
 <td><code>r&quot;ab\ncd&quot;</code></td>
-<td>Result: <code>&quot;abncd&quot;</code><br>Remainder: <code>&quot;&quot;</code></td>
-<td>XXX: no idea why this is useful</td>
+<td>Result: <code>&quot;abncd&quot;</code><br>No remainder</td>
+<td>Similar to <code>escaped</code>, but the third parser can return a different value into which the control character and escaped character are transformed. <a href="#general-combinators"><code>value</code></a> is very useful for this, but you can use your own parsers as well</td>
+</tr>
+<tr>
+<td></td>
+<td><code>escaped_transform(alpha1, '\\', value(&quot;BOO&quot;, char('n')))</code></td>
+<td><code>r&quot;ab\ncd&quot;</code></td>
+<td>Result: <code>&quot;abBOOcd&quot;</code><br>No remainder</td>
+<td>Above <code>\n</code> is transformed into just <code>n</code>, but here that combo is transformed into <code>BOO</code></td>
+</tr>
+<tr>
+<td></td>
+<td><code>escaped_transform(alpha1, '\\', alt((value(&quot;BOO&quot;, char('n')), value(&quot;EEK&quot;, char('c')))))</code></td>
+<td><code>r&quot;ab\ncd\cef&quot;</code></td>
+<td>Result: <code>&quot;abBOOcdEEKef&quot;</code><br>No remainder</td>
+<td><a href="#choice-combinators"><code>alt</code></a> is useful to transform multiple different escape sequences into different values. In addition to <code>\n</code> into <code>BOO</code>, <code>\c</code> is converted into <code>EEK</code></td>
 </tr>
 </tbody>
 </table>
-<h2>General combinators</h2>
+<h3><a href="#numbers" aria-hidden="true" class="anchor" id="numbers"></a>Numbers</h3>
+<p>Nom can parse numbers either in <a href="#text-to-number">text</a> or <a href="#binary-to-number">binary</a> formats.</p>
+<h4><a href="#text-to-number" aria-hidden="true" class="anchor" id="text-to-number"></a>Text to number</h4>
+<table>
+<thead>
+<tr>
+<th>parser</th>
+<th>usage</th>
+<th>input</th>
+<th>output</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.i8.html">i8</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.i8.html">i8</a><br>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.i16.html">i16</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.i16.html">i16</a><br>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.i32.html">i32</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.i32.html">i32</a><br>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.i64.html">i64</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.i64.html">i64</a><br>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.i128.html">i128</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.i128.html">i128</a></td>
+<td><code>i8</code></td>
+<td><code>&quot;123&quot;</code></td>
+<td>Result: <code>123</code><br>No remainder</td>
+<td>Recognizes a signed integer. Various bitsize functions are available</td>
+</tr>
+<tr>
+<td></td>
+<td><code>i8</code></td>
+<td><code>&quot;123abc&quot;</code></td>
+<td>Result: <code>123</code><br>Remainder: <code>&quot;abc&quot;</code></td>
+<td>As always, remaining characters are ignored</td>
+</tr>
+<tr>
+<td></td>
+<td><code>i8</code></td>
+<td><code>&quot;+123&quot;</code></td>
+<td>Result: <code>123</code><br>No remainder</td>
+<td>You can use a sign if you want to</td>
+</tr>
+<tr>
+<td></td>
+<td><code>i8</code></td>
+<td><code>&quot;-123&quot;</code></td>
+<td>Result: <code>-123</code><br>No remainder</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>i8</code></td>
+<td><code>&quot;-200&quot;</code></td>
+<td>Error<br>Byte offset: 0<br>Code: Digit</td>
+<td>If the digits make a number that's too large, you will get an error</td>
+</tr>
+<tr>
+<td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.u8.html">u8</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.u8.html">u8</a><br>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.u16.html">u16</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.u16.html">u16</a><br>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.u32.html">u32</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.u32.html">u32</a><br>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.u64.html">u64</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.u64.html">u64</a><br>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.u128.html">u128</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.u128.html">u128</a></td>
+<td><code>u8</code></td>
+<td><code>&quot;123&quot;</code></td>
+<td>Result: <code>123</code><br>No remainder</td>
+<td>Recognizes an unsigned integer. Various bitsize functions are available</td>
+</tr>
+<tr>
+<td></td>
+<td><code>u8</code></td>
+<td><code>&quot;123abc&quot;</code></td>
+<td>Result: <code>123</code><br>Remainder: <code>&quot;abc&quot;</code></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>u8</code></td>
+<td><code>&quot;+123&quot;</code></td>
+<td>Error<br>Byte offset: 0<br>Code: Digit</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>u8</code></td>
+<td><code>&quot;-123&quot;</code></td>
+<td>Error<br>Byte offset: 0<br>Code: Digit</td>
+<td></td>
+</tr>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.double.html">double</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.double.html">double</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.float.html">float</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.float.html">float</a></td>
+<td><code>double</code></td>
+<td><code>&quot;123E-02&quot;</code></td>
+<td>Result: <code>1.23</code><br>No remainder</td>
+<td><code>double</code> recognizes floating point number in text format and returns an <code>f64</code>.  <code>float</code> does the same for <code>f32</code></td>
+</tr>
+<tr>
+<td></td>
+<td><code>double</code></td>
+<td><code>&quot;123.456&quot;</code></td>
+<td>Result: <code>123.456</code><br>No remainder</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>double</code></td>
+<td><code>&quot;123.456E-02&quot;</code></td>
+<td>Result: <code>1.23456</code><br>No remainder</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>double</code></td>
+<td><code>&quot;123.456E+02&quot;</code></td>
+<td>Result: <code>12345.6</code><br>No remainder</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>double</code></td>
+<td><code>&quot;123.456hello&quot;</code></td>
+<td>Result: <code>123.456</code><br>Remainder: <code>&quot;hello&quot;</code></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>double</code></td>
+<td><code>&quot;123.456e0hi&quot;</code></td>
+<td>Result: <code>123.456</code><br>Remainder: <code>&quot;hi&quot;</code></td>
+<td></td>
+</tr>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.recognize_float.html">recognize_float</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.recognize_float.html">recognize_float</a></td>
+<td><code>recognize_float</code></td>
+<td><code>&quot;123E-02&quot;</code></td>
+<td>Result: <code>&quot;123E-02&quot;</code><br>No remainder</td>
+<td>Recognizes floating point number in text format and returns the corresponding slice (there is no <code>recognize_double</code> as there is no difference in the text form of float vs double)</td>
+</tr>
+<tr>
+<td></td>
+<td><code>recognize_float</code></td>
+<td><code>&quot;123.456&quot;</code></td>
+<td>Result: <code>&quot;123.456&quot;</code><br>No remainder</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>recognize_float</code></td>
+<td><code>&quot;123.456E-02&quot;</code></td>
+<td>Result: <code>&quot;123.456E-02&quot;</code><br>No remainder</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>recognize_float</code></td>
+<td><code>&quot;123.456E+02&quot;</code></td>
+<td>Result: <code>&quot;123.456E+02&quot;</code><br>No remainder</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>recognize_float</code></td>
+<td><code>&quot;123.456hello&quot;</code></td>
+<td>Result: <code>&quot;123.456&quot;</code><br>Remainder: <code>&quot;hello&quot;</code></td>
+<td>As always, remaining characters are ignored</td>
+</tr>
+<tr>
+<td></td>
+<td><code>recognize_float</code></td>
+<td><code>&quot;123.456e0hi&quot;</code></td>
+<td>Result: <code>&quot;123.456e0&quot;</code><br>Remainder: <code>&quot;hi&quot;</code></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>recognize(float)</code></td>
+<td><code>&quot;123E-02&quot;</code></td>
+<td>Result: <code>&quot;123E-02&quot;</code><br>No remainder</td>
+<td><code>recognize_float</code> is basically a slightly more optimal version of <code>recognize(double)</code> or <code>recognize(float)</code></td>
+</tr>
+<tr>
+<td></td>
+<td><code>recognize(double)</code></td>
+<td><code>&quot;123E-02&quot;</code></td>
+<td>Result: <code>&quot;123E-02&quot;</code><br>No remainder</td>
+<td></td>
+</tr>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.hex_u32.html">hex_u32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.hex_u32.html">hex_u32</a></td>
+<td><code>hex_u32</code></td>
+<td><code>b&quot;abcxyz&quot;</code></td>
+<td>Result: <code>2748</code><br>Remainder: <code>&amp;[0x78, 0x79, 0x7a]</code></td>
+<td>Recognizes hex-encoded <code>u32</code>. This only works with <code>&amp;[u8]</code> inputs</td>
+</tr>
+<tr>
+<td></td>
+<td><code>hex_u32</code></td>
+<td><code>&amp;[0x61, 0x62, 0x63, 0x78, 0x79, 0x7a]</code></td>
+<td>Result: <code>2748</code><br>Remainder: <code>&amp;[0x78, 0x79, 0x7a]</code></td>
+<td>But for some reason, we're doing character recognition (this is the same as the <code>b&quot;abcxyz&quot;</code> above)</td>
+</tr>
+</tbody>
+</table>
+<h4><a href="#binary-to-number" aria-hidden="true" class="anchor" id="binary-to-number"></a>Binary to number</h4>
+<table>
+<thead>
+<tr>
+<th>parser</th>
+<th>usage</th>
+<th>input</th>
+<th>output</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.i8.html">i8</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.i8.html">i8</a></td>
+<td><code>i8</code></td>
+<td><code>&amp;[0xf0]</code></td>
+<td>Result: <code>-16</code><br>No remainder</td>
+<td>Recognizes a signed integer. Endianness does not matter for single byte numbers, so there's no <code>Endianness</code> parameter</td>
+</tr>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.u8.html">u8</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.u8.html">u8</a></td>
+<td><code>u8</code></td>
+<td><code>&amp;[0xf0]</code></td>
+<td>Result: <code>240</code><br>No remainder</td>
+<td>Recognizes a unsigned integer. Endianness does not matter for single byte numbers, so there's no <code>Endianness</code> parameter</td>
+</tr>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.i16.html">i16</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.i16.html">i16</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.i24.html">i24</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.i24.html">i24</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.i32.html">i32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.i32.html">i32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.i64.html">i64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.i64.html">i64</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.i128.html">i128</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.i128.html">i128</a></td>
+<td><code>i16(Endianness::Big)</code></td>
+<td><code>&amp;[0xff, 0x00]</code></td>
+<td>Result: <code>-256</code><br>No remainder</td>
+<td>Recognizes a signed integer. Various bitsize functions are available. Endianness handled according to parameter</td>
+</tr>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.u16.html">u16</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.u16.html">u16</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.u24.html">u24</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.u24.html">u24</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.u32.html">u32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.u32.html">u32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.u64.html">u64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.u64.html">u64</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.u128.html">u128</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.u128.html">u128</a></td>
+<td><code>u16(Endianness::Big)</code></td>
+<td><code>&amp;[0xff, 0x00]</code></td>
+<td>Result: <code>65280</code><br>No remainder</td>
+<td>Recognizes a unsigned integer. Various bitsize functions are available. Endianness handled according to parameter</td>
+</tr>
+<tr>
+<td>number::<a href="https://docs.rs/nom/latest/nom/number/enum.Endianness.html">Endianness</a></td>
+<td><code>u16(Endianness::Little)</code></td>
+<td><code>&amp;[0xff, 0x00]</code></td>
+<td>Result: <code>255</code><br>No remainder</td>
+<td>Endianness can be <code>Big</code>, <code>Little</code>, or <code>Native</code></td>
+</tr>
+<tr>
+<td></td>
+<td><code>u16(Endianness::Native)</code></td>
+<td><code>&amp;[0xff, 0x00]</code></td>
+<td>Result: <code>255</code><br>No remainder</td>
+<td></td>
+</tr>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_i8.html">be_i8</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_i8.html">be_i8</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_i16.html">be_i16</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_i16.html">be_i16</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_i24.html">be_i24</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_i24.html">be_i24</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_i32.html">be_i32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_i32.html">be_i32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_i64.html">be_i64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_i64.html">be_i64</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_i128.html">be_i128</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_i128.html">be_i128</a></td>
+<td><code>be_i16</code></td>
+<td><code>&amp;[0xff, 0xaa]</code></td>
+<td>Result: <code>-86</code><br>No remainder</td>
+<td>Recognizes a big endian signed integer</td>
+</tr>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_u8.html">be_u8</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_u8.html">be_u8</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_u16.html">be_u16</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_u16.html">be_u16</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_u24.html">be_u24</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_u24.html">be_u24</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_u32.html">be_u32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_u32.html">be_u32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_u64.html">be_u64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_u64.html">be_u64</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_u128.html">be_u128</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_u128.html">be_u128</a></td>
+<td><code>be_u16</code></td>
+<td><code>&amp;[0xff, 0xaa]</code></td>
+<td>Result: <code>65450</code><br>No remainder</td>
+<td>Recognizes a big endian unsigned integer</td>
+</tr>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_i8.html">le_i8</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_i8.html">le_i8</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_i16.html">le_i16</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_i16.html">le_i16</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_i24.html">le_i24</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_i24.html">le_i24</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_i32.html">le_i32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_i32.html">le_i32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_i64.html">le_i64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_i64.html">le_i64</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_i128.html">le_i128</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_i128.html">le_i128</a></td>
+<td><code>le_i16</code></td>
+<td><code>&amp;[0xff, 0xaa]</code></td>
+<td>Result: <code>-21761</code><br>No remainder</td>
+<td>Recognizes a big endian signed integer</td>
+</tr>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_u8.html">le_u8</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_u8.html">le_u8</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_u16.html">le_u16</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_u16.html">le_u16</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_u24.html">le_u24</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_u24.html">le_u24</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_u32.html">le_u32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_u32.html">le_u32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_u64.html">le_u64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_u64.html">le_u64</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_u128.html">le_u128</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_u128.html">le_u128</a></td>
+<td><code>le_u16</code></td>
+<td><code>&amp;[0xff, 0xaa]</code></td>
+<td>Result: <code>43775</code><br>No remainder</td>
+<td>Recognizes a big endian unsigned integer</td>
+</tr>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_f32.html">be_f32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_f32.html">be_f32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_f64.html">be_f64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_f64.html">be_f64</a></td>
+<td><code>be_f32</code></td>
+<td><code>&amp;[0x41, 0x48, 0x00, 0x00]</code></td>
+<td>Result: <code>12.5</code><br>No remainder</td>
+<td>Recognizes a big endian floating point number</td>
+</tr>
+<tr>
+<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_f32.html">le_f32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_f32.html">le_f32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_f64.html">le_f64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_f64.html">le_f64</a></td>
+<td><code>le_f32</code></td>
+<td><code>&amp;[0x00, 0x00, 0x48, 0x41]</code></td>
+<td>Result: <code>12.5</code><br>No remainder</td>
+<td>Recognizes a big endian floating point number</td>
+</tr>
+<tr>
+<td></td>
+<td><code>le_f32</code></td>
+<td><code>&amp;[0x00, 0x00, 0x48, 0x41, 0x06, 0x09]</code></td>
+<td>Result: <code>12.5</code><br>Remainder: <code>&amp;[0x06, 0x09]</code></td>
+<td>All of these parsers only ever consume the exact number of bytes of their corresponding type</td>
+</tr>
+</tbody>
+</table>
+<h2><a href="#general-combinators" aria-hidden="true" class="anchor" id="general-combinators"></a>General combinators</h2>
+<p>A combinator is a function that takes one or more parsers as arguments and returns a new parser. This allows you to combine parsers in various ways to create more complex parsers.</p>
 <table>
 <thead>
 <tr>
@@ -2063,8 +2522,8 @@ font-weight: bold;
 <tr>
 <td>combinator::<a href="https://docs.rs/nom/latest/nom/combinator/fn.flat_map.html">flat_map</a></td>
 <td><code>flat_map(u8, take)</code></td>
-<td><code>&amp;[2, 90, 91, 92, 93][..]</code></td>
-<td>Result: <code>[90, 91]</code><br>Remainder: <code>[92, 93]</code></td>
+<td><code>&amp;[2, 90, 91, 92, 93]</code></td>
+<td>Result: <code>[90, 91]</code><br>Remainder: <code>&amp;[0x5c, 0x5d]</code></td>
 <td>Apply the first parser, then use its output as the argument for the second parser and apply that to the rest of the input. In this example <code>u8</code> reads a single byte as an unsigned integer, then makes that the argument to <code>take</code> causing it to read the next 2 bytes</td>
 </tr>
 <tr>
@@ -2106,14 +2565,14 @@ font-weight: bold;
 <td>combinator::<a href="https://docs.rs/nom/latest/nom/combinator/fn.recognize.html">recognize</a></td>
 <td><code>recognize(separated_pair(alpha1, char(','), alpha1))</code></td>
 <td><code>&quot;abc,def&quot;</code></td>
-<td>Result: <code>&quot;abc,def&quot;</code><br>Remainder: <code>&quot;&quot;</code></td>
+<td>Result: <code>&quot;abc,def&quot;</code><br>No remainder</td>
 <td>Returns a slice of the input consumed by the child parser/combinator. No matter how complex/nested, or whether combinators throw parts away, this will return a single slice with everything that was consumed</td>
 </tr>
 <tr>
 <td>combinator::<a href="https://docs.rs/nom/latest/nom/combinator/fn.rest.html">rest</a></td>
 <td><code>rest</code></td>
 <td><code>&quot;abc&quot;</code></td>
-<td>Result: <code>&quot;abc&quot;</code><br>Remainder: <code>&quot;&quot;</code></td>
+<td>Result: <code>&quot;abc&quot;</code><br>No remainder</td>
 <td>Returns the remaining input. Mainly useful for combining with other combinators</td>
 </tr>
 <tr>
@@ -2127,12 +2586,12 @@ font-weight: bold;
 <td>combinator::<a href="https://docs.rs/nom/latest/nom/combinator/fn.into.html">into</a></td>
 <td><code>let output: IResult&lt;&amp;str, Vec&lt;u8&gt;&gt; = into(my_alpha1)</code></td>
 <td><code>&quot;abcd&quot;</code></td>
-<td>Result: <code>[97, 98, 99, 100]</code><br>Remainder: <code>&quot;&quot;</code></td>
+<td>Result: <code>[97, 98, 99, 100]</code><br>No remainder</td>
 <td>Use Rust's <code>Into</code> trait to convert the result of a parser if possible</td>
 </tr>
 </tbody>
 </table>
-<h2>Choice combinators</h2>
+<h2><a href="#choice-combinators" aria-hidden="true" class="anchor" id="choice-combinators"></a>Choice combinators</h2>
 <table>
 <thead>
 <tr>
@@ -2173,6 +2632,20 @@ font-weight: bold;
 <td>Succeeds when all its child parser have succeeded, whatever the order</td>
 </tr>
 <tr>
+<td></td>
+<td><code>permutation((tag(&quot;ab&quot;), tag(&quot;cd&quot;), tag(&quot;12&quot;)))</code></td>
+<td><code>&quot;abcd12&quot;</code></td>
+<td>Result: <code>(&quot;ab&quot;, &quot;cd&quot;, &quot;12&quot;)</code><br>No remainder</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>permutation((tag(&quot;ab&quot;), tag(&quot;cd&quot;), tag(&quot;12&quot;)))</code></td>
+<td><code>&quot;12cd&quot;</code></td>
+<td>Error<br>Byte offset: 4<br>Code: Tag</td>
+<td>But <em>all</em> parsers need to succeed</td>
+</tr>
+<tr>
 <td>combinator::<a href="https://docs.rs/nom/latest/nom/combinator/fn.cond.html">cond</a></td>
 <td><code>cond(true, alpha1)</code></td>
 <td><code>&quot;abc123&quot;</code></td>
@@ -2181,7 +2654,7 @@ font-weight: bold;
 </tr>
 </tbody>
 </table>
-<h2>Sequence combinators</h2>
+<h2><a href="#sequence-combinators" aria-hidden="true" class="anchor" id="sequence-combinators"></a>Sequence combinators</h2>
 <table>
 <thead>
 <tr>
@@ -2237,7 +2710,7 @@ font-weight: bold;
 </tr>
 </tbody>
 </table>
-<h2>Applying a parser multiple times</h2>
+<h2><a href="#applying-a-parser-multiple-times" aria-hidden="true" class="anchor" id="applying-a-parser-multiple-times"></a>Applying a parser multiple times</h2>
 <table>
 <thead>
 <tr>
@@ -2288,7 +2761,7 @@ font-weight: bold;
 <td>multi::<a href="https://docs.rs/nom/latest/nom/multi/fn.fold_many0.html">fold_many0</a><br>multi::<a href="https://docs.rs/nom/latest/nom/multi/fn.fold_many1.html">fold_many1</a><br>multi::<a href="https://docs.rs/nom/latest/nom/multi/fn.fold_many_m_n.html">fold_many_m_n</a></td>
 <td><code>fold_many0(take(1u8), Vec::new, |mut acc, item| { acc.push(item); acc })</code></td>
 <td><code>&quot;abc&quot;</code></td>
-<td>Result: <code>[&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]</code><br>Remainder: <code>&quot;&quot;</code></td>
+<td>Result: <code>[&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]</code><br>No remainder</td>
 <td>Applies the parser 0 or more times and folds the list of return values. The <code>fold_many1</code> version must apply the parser at least one time, and <code>fold_many_m_n</code> must apply the parser at least <code>m</code> and at most <code>n</code> times</td>
 </tr>
 <tr>
@@ -2300,7 +2773,7 @@ font-weight: bold;
 </tr>
 </tbody>
 </table>
-<h2>Combinators to do with completeness</h2>
+<h2><a href="#combinators-to-do-with-completeness" aria-hidden="true" class="anchor" id="combinators-to-do-with-completeness"></a>Combinators to do with completeness</h2>
 <table>
 <thead>
 <tr>
@@ -2316,7 +2789,7 @@ font-weight: bold;
 <td>combinator::<a href="https://docs.rs/nom/latest/nom/combinator/fn.all_consuming.html">all_consuming</a></td>
 <td><code>all_consuming(pair(alpha1, number))</code></td>
 <td><code>&quot;abc123&quot;</code></td>
-<td>Result: <code>(&quot;abc&quot;, 123)</code><br>Remainder: <code>&quot;&quot;</code></td>
+<td>Result: <code>(&quot;abc&quot;, 123)</code><br>No remainder</td>
 <td>Returns what the child parser returned if, and only if, the input is exhausted. Otherwise returns an error</td>
 </tr>
 <tr>
@@ -2344,7 +2817,7 @@ font-weight: bold;
 <td>combinator::<a href="https://docs.rs/nom/latest/nom/combinator/fn.eof.html">eof</a></td>
 <td><code>eof</code></td>
 <td><code>&quot;&quot;</code></td>
-<td>Result: <code>&quot;&quot;</code><br>Remainder: <code>&quot;&quot;</code></td>
+<td>Result: <code>&quot;&quot;</code><br>No remainder</td>
 <td>Returns an error if the input is not exhausted, otherwise returns the input</td>
 </tr>
 <tr>
@@ -2356,160 +2829,8 @@ font-weight: bold;
 </tr>
 </tbody>
 </table>
-<h2>Numbers</h2>
-<h3>Text to number</h3>
-<p>Nom does not provide helper functions for converting text to integers, so here are some
-various ways to get started:</p>
-<h4>Generic integer with optional +/- sign</h4>
-<pre class="syntax-highlighting"><code class="language-rust"><span class="source rust"><span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">number</span></span><span class="meta generic rust"><span class="punctuation definition generic begin rust">&lt;</span>T<span class="punctuation definition generic end rust">&gt;</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span><span class="variable parameter rust">input</span><span class="punctuation separator rust">:</span> <span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust"> <span class="meta function return-type rust"><span class="punctuation separator rust">-&gt;</span> <span class="meta generic rust">IResult<span class="punctuation definition generic begin rust">&lt;</span><span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span>, T<span class="punctuation definition generic end rust">&gt;</span></span>
-</span></span><span class="meta function rust"><span class="keyword other rust">where</span>
-    T<span class="punctuation separator rust">:</span> FromStr,
-    <span class="meta generic rust"><span class="punctuation definition generic begin rust">&lt;</span>T as <span class="meta path rust">std<span class="punctuation accessor rust">::</span></span><span class="meta path rust">str<span class="punctuation accessor rust">::</span></span>FromStr<span class="punctuation definition generic end rust">&gt;</span></span><span class="meta path rust"><span class="punctuation accessor rust">::</span></span>Err<span class="punctuation separator rust">:</span> <span class="meta path rust">std<span class="punctuation accessor rust">::</span></span><span class="meta path rust">fmt<span class="punctuation accessor rust">::</span></span>Debug,
-</span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
-    <span class="support function rust">map</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>
-        <span class="support function rust">recognize</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="support function rust">pair</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="support function rust">opt</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="support function rust">one_of</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>+-<span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span> digit1</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span>
-        <span class="meta function closure rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">|</span></span></span><span class="meta function closure rust"><span class="meta function parameters rust"><span class="variable parameter rust">s</span><span class="punctuation separator rust">:</span> <span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span><span class="punctuation section parameters end rust">|</span></span> </span><span class="meta function closure rust">s.<span class="meta path rust">parse<span class="punctuation accessor rust">::</span></span><span class="meta generic rust"><span class="punctuation definition generic begin rust">&lt;</span>T<span class="punctuation definition generic end rust">&gt;</span></span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span>
-    </span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
-</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
-</span></code></pre>
-<h4>Generic integer with optional - sign</h4>
-<pre class="syntax-highlighting"><code class="language-rust"><span class="source rust"><span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">number</span></span><span class="meta generic rust"><span class="punctuation definition generic begin rust">&lt;</span>T<span class="punctuation definition generic end rust">&gt;</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span><span class="variable parameter rust">input</span><span class="punctuation separator rust">:</span> <span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust"> <span class="meta function return-type rust"><span class="punctuation separator rust">-&gt;</span> <span class="meta generic rust">IResult<span class="punctuation definition generic begin rust">&lt;</span><span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span>, T<span class="punctuation definition generic end rust">&gt;</span></span>
-</span></span><span class="meta function rust"><span class="keyword other rust">where</span>
-    T<span class="punctuation separator rust">:</span> FromStr,
-    <span class="meta generic rust"><span class="punctuation definition generic begin rust">&lt;</span>T as <span class="meta path rust">std<span class="punctuation accessor rust">::</span></span><span class="meta path rust">str<span class="punctuation accessor rust">::</span></span>FromStr<span class="punctuation definition generic end rust">&gt;</span></span><span class="meta path rust"><span class="punctuation accessor rust">::</span></span>Err<span class="punctuation separator rust">:</span> <span class="meta path rust">std<span class="punctuation accessor rust">::</span></span><span class="meta path rust">fmt<span class="punctuation accessor rust">::</span></span>Debug,
-</span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
-    <span class="support function rust">map</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>
-        <span class="support function rust">recognize</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="support function rust">pair</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="support function rust">opt</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="support function rust">tag</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>-<span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span> digit1</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span>
-        <span class="meta function closure rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">|</span></span></span><span class="meta function closure rust"><span class="meta function parameters rust"><span class="variable parameter rust">s</span><span class="punctuation separator rust">:</span> <span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span><span class="punctuation section parameters end rust">|</span></span> </span><span class="meta function closure rust">s.<span class="meta path rust">parse<span class="punctuation accessor rust">::</span></span><span class="meta generic rust"><span class="punctuation definition generic begin rust">&lt;</span>T<span class="punctuation definition generic end rust">&gt;</span></span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span>
-    </span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
-</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
-</span></code></pre>
-<h4><code>usize</code></h4>
-<pre class="syntax-highlighting"><code class="language-rust"><span class="source rust"><span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">number</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span><span class="variable parameter rust">input</span><span class="punctuation separator rust">:</span> <span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust"> <span class="meta function return-type rust"><span class="punctuation separator rust">-&gt;</span> <span class="meta generic rust">IResult<span class="punctuation definition generic begin rust">&lt;</span><span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span>, <span class="storage type rust">usize</span><span class="punctuation definition generic end rust">&gt;</span></span></span> </span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
-    <span class="support function rust">map</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>digit1<span class="punctuation separator rust">,</span> <span class="meta function closure rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">|</span></span></span><span class="meta function closure rust"><span class="meta function parameters rust"><span class="variable parameter rust">s</span><span class="punctuation separator rust">:</span> <span class="keyword operator rust">&amp;</span><span class="storage type rust">str</span><span class="punctuation section parameters end rust">|</span></span> </span><span class="meta function closure rust">s.<span class="meta path rust">parse<span class="punctuation accessor rust">::</span></span><span class="meta generic rust"><span class="punctuation definition generic begin rust">&lt;</span><span class="storage type rust">usize</span><span class="punctuation definition generic end rust">&gt;</span></span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>input</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
-</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
-</span></code></pre>
-<h4>Provided integer parsers</h4>
-<table>
-<thead>
-<tr>
-<th>combinator</th>
-<th>usage</th>
-<th>input</th>
-<th>output</th>
-<th>description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.double.html">double</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.double.html">double</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.float.html">float</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.float.html">float</a></td>
-<td><code>double</code></td>
-<td><code>&quot;123E-02&quot;</code></td>
-<td>Result: <code>1.23</code><br>Remainder: <code>&quot;&quot;</code></td>
-<td>Recognizes floating point number in a byte string and returns an <code>f64</code>.  <code>float</code> does the same for <code>f32</code></td>
-</tr>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.recognize_float.html">recognize_float</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.recognize_float.html">recognize_float</a></td>
-<td><code>recognize_float</code></td>
-<td><code>&quot;123E-02&quot;</code></td>
-<td>Result: <code>&quot;123E-02&quot;</code><br>Remainder: <code>&quot;&quot;</code></td>
-<td>Recognizes floating point number in a byte string and returns the corresponding slice</td>
-</tr>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.hex_u32.html">hex_u32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.hex_u32.html">hex_u32</a></td>
-<td><code>hex_u32</code></td>
-<td><code>b&quot;abcxyz&quot;</code></td>
-<td>Result: <code>2748</code><br>Remainder: <code>[120, 121, 122]</code></td>
-<td>Recognizes hex-encoded <code>u32</code></td>
-</tr>
-</tbody>
-</table>
-<h3>Binary to number</h3>
-<p>Parsing integers from binary formats can be done in two ways: With parser functions, or combinators with configurable endianness:</p>
-<table>
-<thead>
-<tr>
-<th>combinator</th>
-<th>usage</th>
-<th>input</th>
-<th>output</th>
-<th>description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.i8.html">i8</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.i8.html">i8</a></td>
-<td><code>i8</code></td>
-<td><code>&amp;[0xf0][..]</code></td>
-<td>Result: <code>-16</code><br>Remainder: <code>[]</code></td>
-<td>Recognizes a signed integer. Endianness does not matter for single byte numbers, so there's no <code>nom::Endianness</code> parameter</td>
-</tr>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.i16.html">i16</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.i16.html">i16</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.i24.html">i24</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.i24.html">i24</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.i32.html">i32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.i32.html">i32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.i64.html">i64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.i64.html">i64</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.i128.html">i128</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.i128.html">i128</a></td>
-<td><code>i16(Endianness::Big)</code></td>
-<td><code>&amp;[0xff, 0x00][..]</code></td>
-<td>Result: <code>-256</code><br>Remainder: <code>[]</code></td>
-<td>Recognizes a signed integer. Various bitsize functions are available. Endianness handled according to parameter</td>
-</tr>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.u8.html">u8</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.u8.html">u8</a></td>
-<td><code>u8</code></td>
-<td><code>&amp;[0xf0][..]</code></td>
-<td>Result: <code>240</code><br>Remainder: <code>[]</code></td>
-<td>Recognizes a unsigned integer. Endianness does not matter for single byte numbers, so there's no <code>nom::Endianness</code> parameter</td>
-</tr>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.u16.html">u16</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.u16.html">u16</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.u24.html">u24</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.u24.html">u24</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.u32.html">u32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.u32.html">u32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.u64.html">u64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.u64.html">u64</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.u128.html">u128</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.u128.html">u128</a></td>
-<td><code>u16(Endianness::Big)</code></td>
-<td><code>&amp;[0xff, 0x00][..]</code></td>
-<td>Result: <code>65280</code><br>Remainder: <code>[]</code></td>
-<td>Recognizes a unsigned integer. Various bitsize functions are available. Endianness handled according to parameter</td>
-</tr>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_i8.html">be_i8</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_i8.html">be_i8</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_i16.html">be_i16</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_i16.html">be_i16</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_i24.html">be_i24</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_i24.html">be_i24</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_i32.html">be_i32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_i32.html">be_i32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_i64.html">be_i64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_i64.html">be_i64</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_i128.html">be_i128</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_i128.html">be_i128</a></td>
-<td><code>be_i16</code></td>
-<td><code>&amp;[0xff, 0xaa][..]</code></td>
-<td>Result: <code>-86</code><br>Remainder: <code>[]</code></td>
-<td>Recognizes a big endian signed integer</td>
-</tr>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_u8.html">be_u8</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_u8.html">be_u8</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_u16.html">be_u16</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_u16.html">be_u16</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_u24.html">be_u24</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_u24.html">be_u24</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_u32.html">be_u32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_u32.html">be_u32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_u64.html">be_u64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_u64.html">be_u64</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_u128.html">be_u128</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_u128.html">be_u128</a></td>
-<td><code>be_u16</code></td>
-<td><code>&amp;[0xff, 0xaa][..]</code></td>
-<td>Result: <code>65450</code><br>Remainder: <code>[]</code></td>
-<td>Recognizes a big endian unsigned integer</td>
-</tr>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_i8.html">le_i8</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_i8.html">le_i8</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_i16.html">le_i16</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_i16.html">le_i16</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_i24.html">le_i24</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_i24.html">le_i24</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_i32.html">le_i32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_i32.html">le_i32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_i64.html">le_i64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_i64.html">le_i64</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_i128.html">le_i128</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_i128.html">le_i128</a></td>
-<td><code>le_i16</code></td>
-<td><code>&amp;[0xff, 0xaa][..]</code></td>
-<td>Result: <code>-21761</code><br>Remainder: <code>[]</code></td>
-<td>Recognizes a big endian signed integer</td>
-</tr>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_u8.html">le_u8</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_u8.html">le_u8</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_u16.html">le_u16</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_u16.html">le_u16</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_u24.html">le_u24</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_u24.html">le_u24</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_u32.html">le_u32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_u32.html">le_u32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_u64.html">le_u64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_u64.html">le_u64</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_u128.html">le_u128</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_u128.html">le_u128</a></td>
-<td><code>le_u16</code></td>
-<td><code>&amp;[0xff, 0xaa][..]</code></td>
-<td>Result: <code>43775</code><br>Remainder: <code>[]</code></td>
-<td>Recognizes a big endian unsigned integer</td>
-</tr>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_f32.html">be_f32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_f32.html">be_f32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.be_f64.html">be_f64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.be_f64.html">be_f64</a></td>
-<td><code>be_f32</code></td>
-<td><code>&amp;[0x41, 0x48, 0x00, 0x00][..]</code></td>
-<td>Result: <code>12.5</code><br>Remainder: <code>[]</code></td>
-<td>Recognizes a big endian floating point number</td>
-</tr>
-<tr>
-<td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_f32.html">le_f32</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_f32.html">le_f32</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.le_f64.html">le_f64</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.le_f64.html">le_f64</a></td>
-<td><code>le_f32</code></td>
-<td><code>&amp;[0x00, 0x00, 0x48, 0x41][..]</code></td>
-<td>Result: <code>12.5</code><br>Remainder: <code>[]</code></td>
-<td>Recognizes a big endian floating point number</td>
-</tr>
-</tbody>
-</table>
-<h1>Fin</h1>
+<h3><a href="#binary-to-number-1" aria-hidden="true" class="anchor" id="binary-to-number-1"></a>Binary to number</h3>
+<h1><a href="#fin" aria-hidden="true" class="anchor" id="fin"></a>Fin</h1>
 </article>
 </body>
 </html>

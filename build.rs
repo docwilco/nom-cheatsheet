@@ -9,19 +9,25 @@ use nom::{
 };
 use nom_cheatsheet_shared::markdown_format_code;
 use std::{
+    collections::HashMap,
     env,
     fs::{read_to_string, File},
     io::{Result, Write},
     path::Path,
 };
 
-static TABLE_HEADER1: &str = "| combinator | usage | input | output | description |";
-static TABLE_HEADER2: &str = "|---|---|---|---|---|";
+static TABLE_HEADER_SEP: &str = "|---|---|---|---|---|";
+
+#[derive(Clone, Debug)]
+struct Url {
+    module: String,
+    name: String,
+    docsurl: String,
+}
 
 #[derive(Debug)]
 struct Combinator<'a> {
-    _name: String,
-    urls: Vec<(String, String, String)>,
+    urls: Vec<Url>,
     usage: String,
     input: &'a str,
     description: &'a str,
@@ -58,7 +64,6 @@ fn parse_combinator(input: &str) -> IResult<&str, Combinator> {
     let (input, _) = sep(input)?;
     let (input, usage) = parse_code(input)?;
     //println!("cargo:warning=Usage={:?}", usage);
-    let usage = if usage.is_empty() { None } else { Some(usage) };
     let (input, _) = sep(input)?;
     let (input, example_input) = parse_code(input)?;
     //println!("cargo:warning=Example Input={:?}", example_input);
@@ -78,33 +83,42 @@ fn parse_combinator(input: &str) -> IResult<&str, Combinator> {
      *
      * But for now, just putting this comment here. O:)
      */
-    let urls = urls.split("<br>").fold(Vec::new(), |mut acc, url| {
-        if url.is_empty() {
-            return acc;
-        }
-        let mut parts = url.split("::").collect::<Vec<_>>();
-        let name = parts.pop().unwrap().to_string();
-        let path = parts.join("::");
-        let mut url: String = "https://docs.rs/nom/latest/nom/".to_string();
-        for part in parts {
-            url.push_str(part);
-            url.push('/');
-        }
-        url.push_str("fn.");
-        url.push_str(&name);
-        url.push_str(".html");
-        acc.push((path, name, url));
-        acc
-    });
+    let urls = urls
+        .split("<br>")
+        .filter_map(|url| {
+            if url.is_empty() {
+                return None;
+            }
+            let mut parts = url.split("::").collect::<Vec<_>>();
+            let name = parts.pop().unwrap().to_string();
+            let path = parts.join("::");
+            let mut url: String = "https://docs.rs/nom/latest/nom/".to_string();
+            for part in parts {
+                url.push_str(part);
+                url.push('/');
+            }
+            if name.chars().next().unwrap().is_lowercase() {
+                url.push_str("fn.");
+            } else {
+                url.push_str("enum.");
+            }
+            url.push_str(&name);
+            url.push_str(".html");
+            Some(Url {
+                module: path,
+                name,
+                docsurl: url,
+            })
+        })
+        .collect::<Vec<_>>();
     let mut name = String::new();
     if !urls.is_empty() {
-        name.clone_from(&urls[0].1);
+        name.clone_from(&urls[0].name);
     }
-    let usage = usage.unwrap_or(&name).to_string();
+    let usage = usage.to_string();
     Ok((
         input,
         Combinator {
-            _name: name,
             urls,
             usage,
             input: example_input,
@@ -117,10 +131,8 @@ fn parse_combinator(input: &str) -> IResult<&str, Combinator> {
 // text before the table.
 fn parse_preamble_and_combinators(input: &str) -> IResult<&str, (&str, Vec<Combinator>)> {
     let (input, preamble) = recognize(tuple((
-        take_until(TABLE_HEADER1),
-        tag(TABLE_HEADER1),
-        line_ending,
-        tag(TABLE_HEADER2),
+        take_until(TABLE_HEADER_SEP),
+        tag(TABLE_HEADER_SEP),
         line_ending,
     )))(input)?;
 
@@ -139,7 +151,8 @@ fn main() -> Result<()> {
         many1(parse_preamble_and_combinators)(&input).unwrap();
 
     let mut fnmain: Vec<u8> = Vec::new();
-    let mut uses: Vec<String> = Vec::new();
+    let mut uses: HashMap<String, String> = HashMap::new();
+    let mut last_urls: Vec<Url> = Vec::new();
 
     // the include macro only works with a single expression in the file,
     // so turn the whole file into a single block with { and }
@@ -159,38 +172,73 @@ fn main() -> Result<()> {
             r#####"write!(markdown, r####"{preamble}"####)?;"#####
         )?;
         for combinator in table.1 {
+            // Put each row in its own block, so that we can `use` without
+            // conflicts
+            writeln!(&mut fnmain, "{{")?;
+
             // XXX: As said in the parser, there's transformations here that should
             // be done elsewhere. Leaving that for later.
             let mut input = combinator.input.to_string();
+            // Some traits are implemented for slices, but not for references to
+            // arrays. So we add `[..]` to those, to make them slices.
+            if input.starts_with("&[") {
+                input.push_str("[..]");
+            }
+            // And byte strings are &str, but we want to treat them as &[u8]
             if input.starts_with("b\"") {
                 input.push_str(" as &[u8]");
             }
-            for (module, name, _) in &combinator.urls {
+
+            let urls = if combinator.urls.is_empty() {
+                last_urls
+            } else {
+                combinator.urls.clone()
+            };
+            for Url {
+                module,
+                name,
+                docsurl: _,
+            } in &urls
+            {
                 // filter out any modules that end with streaming or start with bits
                 if module.ends_with("streaming") || module.starts_with("bits") {
                     continue;
                 }
-                // We put all of these into a Vec so we can dedup them, as `use` statements
-                // can't be duplicated
+                let use_statement =
+                    format!("#[allow(unused_imports)]\nuse nom::{module}::{name};\n");
+                // Write it within our current block
+                fnmain.write_all(use_statement.as_bytes())?;
+                // We also store them all so we can have use statements at the
+                // top of the file for using things in other examples.
                 //
-                // Allow unused imports for these specific ones, as not all are used in the
-                // examples
-                uses.push(format!(
-                    "#[allow(unused_imports)]\nuse nom::{module}::{name};\n"
-                ));
+                // We also put all of these into a HashMap so we can dedup them
+                // by name, keeping the last one. This is because we have both
+                // character::complete::i8 and number::complete::i8, and we only
+                // want one. We just keep the last one we see.
+                //
+                // Allow unused imports for these specific ones, as not all are
+                // used in the examples
+                uses.insert(name.clone(), use_statement);
             }
 
-            let urls = combinator
+            writeln!(&mut fnmain, "let input = {input};")?;
+
+            let urlstrings = combinator
                 .urls
                 .iter()
-                .map(|(module, name, docsurl)| format!("{module}::[{name}]({docsurl})"))
+                .map(
+                    |Url {
+                         module,
+                         name,
+                         docsurl,
+                     }| format!("{module}::[{name}]({docsurl})"),
+                )
                 .collect::<Vec<_>>()
                 .join("<br>");
 
             // Some examples need explicit types in the let statement, they will
             // start with "let output", the rest don't for brevity.
             let usage = combinator.usage.to_string();
-            writeln!(&mut fnmain, "let input = {input};")?;
             let assignment: String = if usage.starts_with("let output") {
                 format!("{usage}({input});\n")
             } else {
@@ -215,8 +263,10 @@ fn main() -> Result<()> {
             writeln!(
                 &mut fnmain,
                 r#####"writeln!(markdown, r####"| {} | {} | {} | {{output}} | {} |"####)?;"#####,
-                urls, usage, input, combinator.description,
+                urlstrings, usage, input, combinator.description,
             )?;
+            writeln!(&mut fnmain, "}}")?;
+            last_urls = urls;
         }
     }
 
@@ -235,7 +285,12 @@ fn main() -> Result<()> {
 
     let uses_file = Path::new(&env::var("OUT_DIR").unwrap()).join("uses.rs");
     let mut uses_file = File::create(uses_file)?;
-    let uses = uses.into_iter().sorted().dedup().collect::<String>();
+    let uses = uses
+        .into_iter()
+        .sorted()
+        .dedup()
+        .map(|(_, v)| v)
+        .collect::<String>();
     uses_file.write_all(uses.as_bytes())?;
     Ok(())
 }

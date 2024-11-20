@@ -1,7 +1,7 @@
 use comrak::{
     markdown_to_html_with_plugins, plugins::syntect::SyntectAdapterBuilder, Options, Plugins,
 };
-use nom::{character::is_alphanumeric, number::Endianness, IResult};
+use nom::IResult;
 use nom_cheatsheet_shared::markdown_format_code;
 use std::{
     fs::File,
@@ -16,8 +16,8 @@ use syntect::{
 
 include! {concat!(env!("OUT_DIR"), "/uses.rs")}
 
-pub trait SubsliceOffset {
-    /** 
+trait SubsliceOffset {
+    /**
     Returns the index of the first character of the subslice in the original slice.
 
     # Example
@@ -72,6 +72,37 @@ impl SubsliceOffset for &[u8] {
     }
 }
 
+trait Length {
+    fn length(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.length() == 0
+    }
+}
+
+impl Length for str {
+    fn length(&self) -> usize {
+        self.len()
+    }
+}
+
+impl Length for &str {
+    fn length(&self) -> usize {
+        self.len()
+    }
+}
+
+impl Length for [u8] {
+    fn length(&self) -> usize {
+        self.len()
+    }
+}
+
+impl Length for &[u8] {
+    fn length(&self) -> usize {
+        self.len()
+    }
+}
+
 fn number(input: &str) -> IResult<&str, usize> {
     map(digit1, |s: &str| s.parse().unwrap())(input)
 }
@@ -81,28 +112,50 @@ fn my_alpha1(input: &str) -> IResult<&str, &str> {
     nom::character::complete::alpha1(input)
 }
 
-fn format_iresult<I, O>(input: I, result: &IResult<I, O>) -> String
+fn format_remainder<I>(remainder: &I) -> String
 where
     I: std::fmt::Debug + SubsliceOffset,
+{
+    markdown_format_code(&format!("{remainder:#04x?}"))
+        .replace('\n', "")
+        .replace(' ', "")
+        .replace(",]", "]")
+        .replace(',', ", ")
+        .replace("[", "&[")
+}
+
+fn format_iresult<I, O>(input: I, result: &IResult<I, O>) -> String
+where
+    I: std::fmt::Debug + SubsliceOffset + Length,
     O: std::fmt::Debug,
 {
     match result {
         Ok((remainder, value)) => {
-            let value = markdown_format_code(&format!("{:?}", value));
-            let remainder = markdown_format_code(&format!("{:?}", remainder));
-            format!("Result: {value}<br>Remainder: {remainder}")
+            let value = markdown_format_code(&format!("{value:?}"));
+            if remainder.is_empty() {
+                format!("Result: {value}<br>No remainder")
+            } else {
+                let remainder = format_remainder(remainder);
+                format!("Result: {value}<br>Remainder: {remainder}")
+            }
         }
         Err(e) => match e {
             nom::Err::Incomplete(needed) => match needed {
                 nom::Needed::Size(size) => format!("Incomplete<br>Needed: {size} items"),
                 nom::Needed::Unknown => "Incomplete<br>Needed: unknown".to_string(),
             },
-            nom::Err::Error(nom::error::Error { input: location, code })
-            | nom::Err::Failure(nom::error::Error { input: location, code }) => {
+            nom::Err::Error(nom::error::Error {
+                input: location,
+                code,
+            })
+            | nom::Err::Failure(nom::error::Error {
+                input: location,
+                code,
+            }) => {
                 let kind = match e {
                     nom::Err::Error(_) => "Error",
                     nom::Err::Failure(_) => "Failure",
-                    _ => unreachable!(),
+                    nom::Err::Incomplete(_) => unreachable!(),
                 };
                 let offset = input.subslice_offset_bytes(location).unwrap();
                 format!("{kind}<br>Byte offset: {offset}<br>Code: {code:?}")
@@ -123,6 +176,7 @@ fn main() -> Result<()> {
 
     let mut options = Options::default();
     options.extension.table = true;
+    options.extension.header_ids = Some(String::new());
     options.render.unsafe_ = true;
     let mut plugins = Plugins::default();
     let syntect = SyntectAdapterBuilder::new().css().build();
@@ -193,4 +247,28 @@ fn main() -> Result<()> {
     )?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_subslice_offset() {
+        let string = "a\nb\nc";
+        let lines: Vec<&str> = string.lines().collect();
+        assert_eq!(string.subslice_offset_bytes(lines[0]), Some(0));
+        assert_eq!(string.subslice_offset_bytes(lines[1]), Some(2));
+        assert_eq!(string.subslice_offset_bytes(lines[2]), Some(4));
+        assert_eq!(string.subslice_offset_bytes("other"), None);
+        assert_eq!(string.subslice_offset_bytes("a"), None);
+    }
+
+    #[test]
+    fn test_format_remainder() {
+        let input = "abc";
+        assert_eq!(format_remainder(&input), "`\"abc\"`");
+        let input = &[0_u8, 1, 2, 3][..];
+        assert_eq!(format_remainder(&input), "`&[0x00, 0x01, 0x02, 0x03]`");
+    }
 }
