@@ -2569,6 +2569,13 @@ font-weight: bold;
 <td>Returns a slice of the input consumed by the child parser/combinator. No matter how complex/nested, or whether combinators throw parts away, this will return a single slice with everything that was consumed</td>
 </tr>
 <tr>
+<td></td>
+<td><code>separated_pair(alpha1, char(','), alpha1)</code></td>
+<td><code>&quot;abc,def&quot;</code></td>
+<td>Result: <code>(&quot;abc&quot;, &quot;def&quot;)</code><br>No remainder</td>
+<td>Here the return value is a tuple of two strings and the comma is discarded, but above only a single string is returned</td>
+</tr>
+<tr>
 <td>combinator::<a href="https://docs.rs/nom/latest/nom/combinator/fn.rest.html">rest</a></td>
 <td><code>rest</code></td>
 <td><code>&quot;abc&quot;</code></td>
@@ -2759,14 +2766,14 @@ font-weight: bold;
 </tr>
 <tr>
 <td>multi::<a href="https://docs.rs/nom/latest/nom/multi/fn.fold_many0.html">fold_many0</a><br>multi::<a href="https://docs.rs/nom/latest/nom/multi/fn.fold_many1.html">fold_many1</a><br>multi::<a href="https://docs.rs/nom/latest/nom/multi/fn.fold_many_m_n.html">fold_many_m_n</a></td>
-<td><code>fold_many0(take(1u8), Vec::new, |mut acc, item| { acc.push(item); acc })</code></td>
+<td><code>fold_many0(take(1_u8), Vec::new, |mut acc, item| { acc.push(item); acc })</code></td>
 <td><code>&quot;abc&quot;</code></td>
 <td>Result: <code>[&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]</code><br>No remainder</td>
 <td>Applies the parser 0 or more times and folds the list of return values. The <code>fold_many1</code> version must apply the parser at least one time, and <code>fold_many_m_n</code> must apply the parser at least <code>m</code> and at most <code>n</code> times</td>
 </tr>
 <tr>
 <td>multi::<a href="https://docs.rs/nom/latest/nom/multi/fn.length_count.html">length_count</a></td>
-<td><code>length_count(number, tag(&quot;ab&quot;))</code></td>
+<td><code>length_count(nom::character::complete::u8, tag(&quot;ab&quot;))</code></td>
 <td><code>&quot;2ababab&quot;</code></td>
 <td>Result: <code>[&quot;ab&quot;, &quot;ab&quot;]</code><br>Remainder: <code>&quot;ab&quot;</code></td>
 <td>Gets a number from the first parser, then applies the second parser that many times. <code>number</code> is a custom defined parser along the lines of text to integer parsers below</td>
