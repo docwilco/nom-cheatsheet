@@ -23,9 +23,11 @@ jobs:
         toolchain: stable
         override: true
 
-    - name: Build
+    - name: Build & Test
       run: |
         cargo build --release
+        cargo test --workspace
+        cargo test --workspace --examples
         cargo run --release
 
     - name: Commit and push changes
