@@ -396,7 +396,7 @@ fn main() {
     let mut output = ["", ""];
     let (input, ()) = fill(take2, &mut output)(input).unwrap();
 
-    assert_eq!(input, "efgh");
+    assert_eq!(input, "efgh")
     assert_eq!(output, ["ab", "cd"]);
 }
 ```
