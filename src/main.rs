@@ -40,7 +40,7 @@ impl SubsliceOffset for str {
         let self_end = self_ptr.checked_add(self.len())?;
         let subslice_ptr = subslice.as_ptr() as usize;
         let subslice_end = subslice_ptr.checked_add(subslice.len())?;
-        if subslice_ptr < self_ptr || subslice_ptr == self_end || subslice_end > self_end {
+        if subslice_ptr < self_ptr || subslice_end > self_end {
             return None;
         }
         if subslice_ptr < self_ptr || subslice_ptr > self_ptr.checked_add(self.len())? {
@@ -276,7 +276,7 @@ mod tests {
         let str3 = &string[3..3];
         let str4 = &string[2..3];
         assert_eq!(str1.subslice_offset_bytes(str2), None);
-        assert_eq!(str1.subslice_offset_bytes(str3), None);
+        assert_eq!(str1.subslice_offset_bytes(str3), Some(3));
         assert_eq!(str1.subslice_offset_bytes(str4), Some(2));
     }
 
