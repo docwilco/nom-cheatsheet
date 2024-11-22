@@ -37,9 +37,12 @@ trait SubsliceOffset {
 impl SubsliceOffset for str {
     fn subslice_offset_bytes(&self, subslice: &str) -> Option<usize> {
         let self_ptr = self.as_ptr() as usize;
+        let self_end = self_ptr.checked_add(self.len())?;
         let subslice_ptr = subslice.as_ptr() as usize;
-        let diff = subslice_ptr - self_ptr;
-        dbg!(self_ptr, subslice_ptr, diff);
+        let subslice_end = subslice_ptr.checked_add(subslice.len())?;
+        if subslice_ptr < self_ptr || subslice_ptr == self_end || subslice_end > self_end {
+            return None;
+        }
         if subslice_ptr < self_ptr || subslice_ptr > self_ptr.checked_add(self.len())? {
             return None;
         }
@@ -58,8 +61,10 @@ impl SubsliceOffset for &str {
 impl SubsliceOffset for [u8] {
     fn subslice_offset_bytes(&self, subslice: &Self) -> Option<usize> {
         let self_ptr = self.as_ptr() as usize;
+        let self_end = self_ptr.checked_add(self.len())?;
         let subslice_ptr = subslice.as_ptr() as usize;
-        if subslice_ptr < self_ptr || subslice_ptr > self_ptr.checked_add(self.len())? {
+        let subslice_end = subslice_ptr.checked_add(subslice.len())?;
+        if subslice_ptr < self_ptr || subslice_end > self_end {
             return None;
         }
         // This is safe because we've already checked that subslice_ptr is never
@@ -264,6 +269,15 @@ mod tests {
         assert_eq!(string.subslice_offset_bytes(lines[2]), Some(4));
         assert_eq!(string.subslice_offset_bytes("other"), None);
         assert_eq!(string.subslice_offset_bytes("a"), None);
+
+        let string = "foobar";
+        let str1 = &string[0..3];
+        let str2 = &string[3..];
+        let str3 = &string[3..3];
+        let str4 = &string[2..3];
+        assert_eq!(str1.subslice_offset_bytes(str2), None);
+        assert_eq!(str1.subslice_offset_bytes(str3), None);
+        assert_eq!(str1.subslice_offset_bytes(str4), Some(2));
     }
 
     #[test]
