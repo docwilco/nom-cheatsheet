@@ -38,6 +38,8 @@ impl SubsliceOffset for str {
     fn subslice_offset_bytes(&self, subslice: &str) -> Option<usize> {
         let self_ptr = self.as_ptr() as usize;
         let subslice_ptr = subslice.as_ptr() as usize;
+        let diff = subslice_ptr - self_ptr;
+        dbg!(self_ptr, subslice_ptr, diff);
         if subslice_ptr < self_ptr || subslice_ptr > self_ptr.checked_add(self.len())? {
             return None;
         }
