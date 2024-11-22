@@ -1,6 +1,6 @@
 # nom-cheatsheet
 
-My own cheatsheet for Nom, still very much a work in progress.
+My own cheatsheet for Nom.
 
 [The markdown cheatsheet](dist/nom-cheatsheet.md)
 
