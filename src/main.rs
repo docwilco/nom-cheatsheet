@@ -1,7 +1,7 @@
 use comrak::{
     markdown_to_html_with_plugins, plugins::syntect::SyntectAdapterBuilder, Options, Plugins,
 };
-use nom::IResult;
+use nom::{character::complete::digit1, combinator::map, IResult};
 use nom_cheatsheet_shared::markdown_format_code;
 use std::{
     fs::File,
@@ -14,7 +14,8 @@ use syntect::{
     html::{css_for_theme_with_class_style, ClassStyle},
 };
 
-include! {concat!(env!("OUT_DIR"), "/uses.rs")}
+mod generated;
+use generated::generate;
 
 trait SubsliceOffset {
     /**
@@ -124,14 +125,13 @@ where
     I: std::fmt::Debug + SubsliceOffset,
 {
     markdown_format_code(&format!("{remainder:#04x?}"))
-        .replace('\n', "")
-        .replace(' ', "")
+        .replace(['\n', ' '], "")
         .replace(",]", "]")
         .replace(',', ", ")
-        .replace("[", "&[")
+        .replace('[', "&[")
 }
 
-fn format_iresult<I, O>(input: I, result: &IResult<I, O>) -> String
+fn format_iresult<I, O>(input: &I, result: &IResult<I, O>) -> String
 where
     I: std::fmt::Debug + SubsliceOffset + Length,
     O: std::fmt::Debug,
@@ -172,9 +172,7 @@ where
 }
 
 fn main() -> Result<()> {
-    let mut markdown: Vec<u8> = Vec::new();
-
-    include!(concat!(env!("OUT_DIR"), "/main.rs"));
+    let markdown = generate()?;
 
     let markdown_path = Path::new("dist/nom-cheatsheet.md");
     println!("Markdown file: {markdown_path:?}");

@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use nom::{
     branch::alt,
     bytes::complete::{is_a, tag, take_until},
@@ -9,13 +8,14 @@ use nom::{
     IResult,
 };
 use nom_cheatsheet_shared::markdown_format_code;
+use quote::{format_ident, ToTokens};
 use std::{
     collections::{HashMap, HashSet},
     env,
-    fs::{read_to_string, write, File},
-    io::Write,
+    fs::{self, read_to_string},
     path::Path,
 };
+use syn::{parse_quote, Expr, ExprLit, Item, Lit, Stmt};
 
 pub type Result<T> = core::result::Result<T, Error>;
 pub type Error = Box<dyn std::error::Error>;
@@ -69,9 +69,9 @@ fn parse_code_block(input: &str) -> IResult<&str, Component> {
     Ok((input, Component::CodeBlock(CodeBlock { language, code })))
 }
 
-fn do_code_blocks(input: String) -> Result<String> {
+fn do_code_blocks(input: &str) -> Result<String> {
     let (input, mut components) =
-        many1(alt((parse_code_block, parse_outside_code_blocks)))(&input).unwrap();
+        many1(alt((parse_code_block, parse_outside_code_blocks)))(input).unwrap();
     assert_eq!(input, "");
     for (index, component) in components.iter_mut().enumerate() {
         let Component::CodeBlock(code_block) = component else {
@@ -88,7 +88,7 @@ fn do_code_blocks(input: String) -> Result<String> {
         let path = Path::new(&path);
         let mut code = code_block.code.to_string();
         code.push_str(
-            r#"
+            r"
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,16 +97,16 @@ mod tests {
     fn test_main() {
         main();
     }
-}"#,
+}",
         );
-        write(path, code)?;
+        fs::write(path, code)?;
     }
     let output = components
         .into_iter()
         .map(|component| match component {
             Component::Text(text) => text.to_string(),
             Component::CodeBlock(CodeBlock { language, code }) => {
-                format!("```{}\n{}\n```", language, code)
+                format!("```{language}\n{code}\n```")
             }
         })
         .collect();
@@ -139,19 +139,15 @@ fn parse_combinator(input: &str) -> IResult<&str, Combinator> {
     let (input, _) = sep(input)?;
     let (input, urls): (&str, &str) = take_until("|")(input)?;
     let urls = urls.trim_end();
-    //println!("cargo:warning=URLS={:?}", urls);
     let (input, _) = space0(input)?;
     let (input, _) = sep(input)?;
     let (input, usage) = opt(parse_code_span)(input)?;
-    //println!("cargo:warning=Usage={:?}", usage);
     let (input, _) = sep(input)?;
     let (input, example_input) = opt(parse_code_span)(input)?;
-    //println!("cargo:warning=Example Input={:?}", example_input);
     let (input, _) = sep(input)?;
     let (input, _) = sep(input)?;
     let (input, description) = take_until("|")(input)?;
     let description = description.trim_end();
-    //println!("cargo:warning=Description={:?}", description);
     let (input, _) = sep(input)?;
     let (input, _) = line_ending(input)?;
 
@@ -236,10 +232,11 @@ fn parse_preamble_and_combinators(input: &str) -> IResult<&str, (&str, Vec<Combi
     Ok((input, (preamble, combinators)))
 }
 
+#[allow(clippy::too_many_lines)]
 fn main() -> Result<()> {
     let input = read_to_string("src/nom-cheatsheet-template.md")?;
 
-    let input = do_code_blocks(input)?;
+    let input = do_code_blocks(&input)?;
 
     // This snags a Vec of Tuples
     // .0 is all the text since the start of the file or the end of the previous table
@@ -248,38 +245,36 @@ fn main() -> Result<()> {
     let (remainder, result): (&str, Vec<(&str, Vec<Combinator>)>) =
         many1(parse_preamble_and_combinators)(&input).unwrap();
 
-    let mut fnmain: Vec<u8> = Vec::new();
-    let mut uses = HashMap::<String, String>::new();
+    let mut uses = HashMap::<String, Item>::new();
     let mut uses_conflicts = HashSet::<String>::new();
     let mut last_urls: Vec<Url> = Vec::new();
 
-    // the include macro only works with a single expression in the file,
-    // so turn the whole file into a single block with { and }
-    writeln!(&mut fnmain, "{{")?;
+    // These will be all the statements that go into `generate()`
+    let mut statements: Vec<Stmt> = Vec::new();
 
     for table in result {
-        // Preamble already ends with a newline, so use print instead of println
-        // escape braces first, though
-        let preamble = table.0.replace('{', "{{").replace('}', "}}");
-        // Use ##### (5#) for the raw string literal, so that the included file can use
-        // #### (4#) for its raw strings. That way, those can contain up to ### (3#) without
-        // any trouble. That should be enough for markdown headers.
+        // Preamble already ends with a newline, so use write instead of writeln
         //
-        // Preamble is put into the end result as-is.
-        writeln!(
-            &mut fnmain,
-            r#####"write!(markdown, r####"{preamble}"####)?;"#####
-        )?;
+        // Escape braces because we're putting this string straight into a
+        // format
+        //
+        // Otherwise preamble goes into the resulting markdown as-is
+        let preamble = table.0;
+        let preamble = parse_quote! {
+            write!(markdown, "{}", #preamble)?;
+        };
+        statements.push(preamble);
+
         for combinator in table.1 {
-            // Put each row in its own block, so that we can `use` without
-            // conflicts
-            writeln!(&mut fnmain, "{{")?;
+            // Put each row in the table in its own block, so that we can `use`
+            // without conflicts
 
             let urls = if combinator.urls.is_empty() {
                 last_urls
             } else {
                 combinator.urls.clone()
             };
+            let mut imports: syn::File = syn::parse_str(combinator.imports)?;
             for Url {
                 module,
                 name,
@@ -290,10 +285,16 @@ fn main() -> Result<()> {
                 if module.ends_with("streaming") || module.starts_with("bits") {
                     continue;
                 }
-                let use_statement =
-                    format!("#[allow(unused_imports)]\nuse nom::{module}::{name};\n");
-                // Write it within our current block
-                fnmain.write_all(use_statement.as_bytes())?;
+                let module = format!("nom::{module}");
+                let module: syn::Path = syn::parse_str(&module)?;
+                let name_ident = format_ident!("{name}");
+                let use_statement = Item::Use(
+                    parse_quote! {
+                        #[allow(unused_imports)]
+                        use #module::#name_ident;
+                    }
+                );
+                imports.items.push(use_statement.clone());
                 // We also store them all so we can have use statements at the
                 // top of the file for using things in other examples.
                 //
@@ -327,88 +328,114 @@ fn main() -> Result<()> {
 
             match (combinator.input, combinator.usage) {
                 (None, None) => {
-                    writeln!(
-                        &mut fnmain,
-                        r#####"writeln!(markdown, r####"| {} |  |  |  | {} |"####)?;"#####,
-                        urlstrings, combinator.description,
-                    )?;
+                    let row = format!(
+                        "| {urlstrings} |  |  |  | {desc} |",
+                        desc = combinator.description
+                    );
+                    let block = parse_quote! {
+                        {
+                            writeln!(markdown, "{}", #row)?;
+                        }
+                    };
+                    statements.push(block);
                 }
                 (Some(_), None) | (None, Some(_)) => {
                     panic!("Both usage and input must be present, or neither.");
                 }
                 (Some(input), Some(usage)) => {
-                    // XXX: As said in the parser, there's transformations here that should
-                    // be done elsewhere. Leaving that for later.
-                    let mut input_code = input.to_string();
-                    // Some traits are implemented for slices, but not for references to
-                    // arrays. So we add `[..]` to those, to make them slices.
-                    if input_code.starts_with("&[") {
-                        input_code.push_str("[..]");
+                    // XXX: As said in the parser, there's transformations here
+                    // that should be done elsewhere. Leaving that for later.
+                    let mut input_code: Expr = syn::parse_str(input)?;
+                    // Some traits are implemented for slices, but not for
+                    // references to arrays. So we add `[..]` to those, to make
+                    // them slices.
+                    if let Expr::Reference(reference) = &input_code {
+                        if let Expr::Array(_) = reference.expr.as_ref() {
+                            input_code = parse_quote! { #input_code[..] };
+                        }
                     }
-                    // And byte strings are &str, but we want to treat them as &[u8]
-                    if input_code.starts_with("b\"") {
-                        input_code.push_str(" as &[u8]");
+                    // And byte strings are &str, but we want to treat them as
+                    // &[u8]
+                    if let Expr::Lit(ExprLit {
+                        lit: Lit::ByteStr(_),
+                        ..
+                    }) = &input_code
+                    {
+                        input_code = parse_quote! { #input_code as &[u8] };
                     }
-                    writeln!(&mut fnmain, "{}", combinator.imports)?;
-                    writeln!(&mut fnmain, "let input = {input_code};")?;
+
                     // Some examples need explicit types in the let statement, they will
                     // start with "let output", the rest don't for brevity.
-                    let assignment: String = if usage.starts_with("let output") {
-                        format!("{usage}(input);\n")
-                    } else {
-                        format!("let output: IResult<_, _> = {usage}(input);\n")
-                    };
-                    let assignment = assignment.replace("\\|", "|");
+                    let usage_code = usage.replace("\\|", "|");
+                    let usage_with_input = usage_code.clone() + "(input);";
+                    let assignment =
+                        if let Ok(Stmt::Local(local)) = syn::parse_str::<Stmt>(&usage_with_input) {
+                            assert!(local
+                                .pat
+                                .to_token_stream()
+                                .to_string()
+                                .starts_with("output"));
+                            Stmt::Local(local)
+                        } else {
+                            let expr: Expr = syn::parse_str(&usage_code).unwrap();
+                            parse_quote! {
+                                let output: IResult<_, _> = #expr(input);
+                            }
+                        };
 
-                    fnmain.write_all(assignment.as_bytes())?;
-
-                    // Make sure that output is properly escaped
-                    writeln!(
-                        &mut fnmain,
-                        r#"let output = format_iresult(input, &output);"#
-                    )?;
-                    // Escape braces in the usage and input strings
                     let usage = markdown_format_code(&usage);
-                    let usage = usage.replace('{', "{{");
-                    let usage = usage.replace('}', "}}");
-                    let input = markdown_format_code(&input);
-                    let input = input.replace('{', "{{");
-                    let input = input.replace('}', "}}");
-                    writeln!(
-                        &mut fnmain,
-                        r#####"writeln!(markdown, r####"| {} | {} | {} | {{output}} | {} |"####)?;"#####,
-                        urlstrings, usage, input, combinator.description,
-                    )?;
+                    let input = markdown_format_code(input);
+                    let description = combinator.description;
+                    let block = parse_quote! {
+                        {
+                            #imports
+                            let input = #input_code;
+                            #assignment;
+                            let output = format_iresult(&input, &output);
+                            writeln!(
+                                markdown,
+                                "| {urlstrings} | {usage} | {input} | {output} | {desc} |",
+                                urlstrings = #urlstrings,
+                                usage = #usage,
+                                input = #input,
+                                desc = #description
+                            )?;
+                        }
+                    };
+                    statements.push(block);
                 }
             };
-            writeln!(&mut fnmain, "}}")?;
             last_urls = urls;
         }
     }
 
-    let remainder = remainder.replace('{', "{{").replace('}', "}}");
+    let remainder = parse_quote! {
+        write!(markdown, "{}", #remainder)?;
+    };
+    statements.push(remainder);
 
-    writeln!(
-        &mut fnmain,
-        r#####"write!(markdown, r####"{remainder}"####)?;"#####
-    )?;
-
-    writeln!(&mut fnmain, "}}")?;
-
-    let main_file = Path::new(&env::var("OUT_DIR").unwrap()).join("main.rs");
-    write(main_file, &fnmain)?;
-
-    let uses_file = Path::new(&env::var("OUT_DIR").unwrap()).join("uses.rs");
-    let mut uses_file = File::create(uses_file)?;
     for conflict in uses_conflicts {
         uses.remove(&conflict);
     }
-    let uses = uses
-        .into_iter()
-        .sorted()
-        .dedup()
-        .map(|(_, v)| v)
-        .collect::<String>();
-    uses_file.write_all(uses.as_bytes())?;
+    let mut uses = uses.values().cloned().collect::<Vec<_>>();
+    uses.sort_by_key(|item| item.to_token_stream().to_string());
+
+    let generated_file: syn::File = parse_quote! {
+        #(#uses)*
+        use std::io::Write;
+        use super::{IResult, Result, format_iresult, my_alpha1, number, str};
+
+        #[allow(clippy::too_many_lines)]
+        pub fn generate() -> Result<Vec<u8>> {
+            let mut markdown = Vec::new();
+            #(#statements)*
+            Ok(markdown)
+        }
+    };
+
+    let generated_file_path = Path::new(&env::var("OUT_DIR").unwrap()).join("generated.rs");
+    let formatted = prettyplease::unparse(&generated_file);
+    fs::write(generated_file_path, formatted)?;
+
     Ok(())
 }

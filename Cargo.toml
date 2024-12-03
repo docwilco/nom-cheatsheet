@@ -9,11 +9,17 @@ comrak = "0.29.0"
 nom = "7.1.3"
 nom-cheatsheet-shared = { path = "nom-cheatsheet-shared" }
 syntect = "5.2.0"
+prettyplease = "0.2.25"
+quote = "1.0.37"
+syn = { version = "2.0.90", features = ["extra-traits"] }
 
 [build-dependencies]
+itertools = "0.13.0"
 nom = "7.1.3"
 nom-cheatsheet-shared = { path = "nom-cheatsheet-shared" }
-itertools = "0.13.0"
+prettyplease = "0.2.25"
+quote = "1.0.37"
+syn = "2.0.90"
 
 [workspace]
 members = ["nom-cheatsheet-shared"]

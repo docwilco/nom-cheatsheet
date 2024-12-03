@@ -362,18 +362,18 @@ abc";
     let mut iter = iterator(input, digits_line);
     // Convert each item to a usize and collect them into a HashSet
     let iterated_data = iter
-        .map(|s| s.parse::<usize>())
+        .map(str::parse::<usize>)
         .collect::<Result<HashSet<_>, _>>()
         .unwrap();
     // Check whether we completed iterating successfully, and get the remaining
     // input
-    let (input, _) = iter.finish().unwrap();
+    let (input, ()) = iter.finish().unwrap();
 
     assert_eq!(input, "abc");
     assert_eq!(iterated_data.len(), 6);
-    assert!(iterated_data.contains(&23495872));
-    assert!(iterated_data.contains(&34587366));
-    assert!(iterated_data.contains(&28374928));
+    assert!(iterated_data.contains(&23_495_872));
+    assert!(iterated_data.contains(&34_587_366));
+    assert!(iterated_data.contains(&28_374_928));
 }
 
 ```
