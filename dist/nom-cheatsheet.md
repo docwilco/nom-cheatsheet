@@ -101,19 +101,20 @@ Those are used to recognize the lowest level elements of your grammar, like, "he
 
 ### Single byte or character parsers
 
-All of these parsers will return a single byte or character.
+All of these parsers will return a single byte or character. Note that all of these parsers accept `Input<Item = AsChar>` inputs, meaning that they can parse both `&[u8]` and `&str`.
 
 | parser | usage | input | output | description |
 |---|---|---|---|---|
+| character::complete::[char](https://docs.rs/nom/latest/nom/character/complete/fn.char.html)<br>character::streaming::[char](https://docs.rs/nom/latest/nom/character/streaming/fn.char.html) | `char('a')` | `"abc"` | Result: `'a'`<br>Remainder: `"bc"` | Matches one specific character |
+|  | `char('a')` | `"cba"` | Error<br>Byte offset: 0<br>Code: Char | If that character isn't the immediate input, parsing fails |
+|  | `char('💞')` | `"💞🦀"` | Result: `'💞'`<br>Remainder: `"🦀"` | Multi-byte characters work as well |
+|  | `char('a')` | `b"cba"` | Error<br>Byte offset: 0<br>Code: Char | `&[u8]` inputs work too |
+| character::complete::[anychar](https://docs.rs/nom/latest/nom/character/complete/fn.anychar.html)<br>character::streaming::[anychar](https://docs.rs/nom/latest/nom/character/streaming/fn.anychar.html) | `anychar` | `"abc"` | Result: `'a'`<br>Remainder: `"bc"` | Matches any single character |
+|  | `anychar` | `"💞🦀"` | Result: `'💞'`<br>Remainder: `"🦀"` | Multi-byte characters work as well |
 | character::complete::[newline](https://docs.rs/nom/latest/nom/character/complete/fn.newline.html)<br>character::streaming::[newline](https://docs.rs/nom/latest/nom/character/streaming/fn.newline.html) | `newline` | `"\nhello"` | Result: `'\n'`<br>Remainder: `"hello"` | Matches a newline character, also known as line feed, `\n`, or `LF`. See also `crlf` and `line_ending` in the [sequence parsers section](#sequence-of-bytes-or-characters-parsers) |
 | character::complete::[tab](https://docs.rs/nom/latest/nom/character/complete/fn.tab.html)<br>character::streaming::[tab](https://docs.rs/nom/latest/nom/character/streaming/fn.tab.html) | `tab` | `"\t"` | Result: `'\t'`<br>No remainder | Matches a tab character, `\t` |
 |  | `tab` | `"\t\t"` | Result: `'\t'`<br>Remainder: `"\t"` | It only matches a single tab |
 |  | `tab` | `" \t"` | Error<br>Byte offset: 0<br>Code: Char | And does not match a space |
-| character::complete::[char](https://docs.rs/nom/latest/nom/character/complete/fn.char.html)<br>character::streaming::[char](https://docs.rs/nom/latest/nom/character/streaming/fn.char.html) | `char('a')` | `"abc"` | Result: `'a'`<br>Remainder: `"bc"` | Matches one specific character |
-|  | `char('a')` | `"cba"` | Error<br>Byte offset: 0<br>Code: Char | If that character isn't the immediate input, parsing fails |
-|  | `char('💞')` | `"💞🦀"` | Result: `'💞'`<br>Remainder: `"🦀"` | Multi-byte characters work as well |
-| character::complete::[anychar](https://docs.rs/nom/latest/nom/character/complete/fn.anychar.html)<br>character::streaming::[anychar](https://docs.rs/nom/latest/nom/character/streaming/fn.anychar.html) | `anychar` | `"abc"` | Result: `'a'`<br>Remainder: `"bc"` | Matches any single character |
-|  | `anychar` | `"💞🦀"` | Result: `'💞'`<br>Remainder: `"🦀"` | Multi-byte characters work as well |
 | character::complete::[one_of](https://docs.rs/nom/latest/nom/character/complete/fn.one_of.html)<br>character::streaming::[one_of](https://docs.rs/nom/latest/nom/character/streaming/fn.one_of.html) | `one_of("abc")` | `"abc"` | Result: `'a'`<br>Remainder: `"bc"` | Matches one of the provided characters |
 | character::complete::[none_of](https://docs.rs/nom/latest/nom/character/complete/fn.none_of.html)<br>character::streaming::[none_of](https://docs.rs/nom/latest/nom/character/streaming/fn.none_of.html) | `none_of("abc")` | `"xyab"` | Result: `'x'`<br>Remainder: `"yab"` | Matches a single character that is anything but the provided characters |
 | character::complete::[satisfy](https://docs.rs/nom/latest/nom/character/complete/fn.satisfy.html)<br>character::streaming::[satisfy](https://docs.rs/nom/latest/nom/character/streaming/fn.satisfy.html) | `satisfy(\|c\| c == 'a' \|\| c == 'b')` | `"abc"` | Result: `'a'`<br>Remainder: `"bc"` | Matches a single character that satisfies the provided function |
@@ -129,11 +130,14 @@ These parsers will return a slice of bytes or characters. Those suffixed with `0
 |  | `digit0` | `"abc123"` | Result: `""`<br>Remainder: `"abc123"` | Because it is allowed to return an empty string, this does not error |
 |  | `digit1` | `"abc123"` | Error<br>Byte offset: 0<br>Code: Digit | This however does error, because there must be at least one numerical ASCII character |
 
-This goes for all the `0` and `1` suffixed parsers below:
+This goes for all the `0` and `1` suffixed parsers below.
+
+In addition to most of these accepting both `&[u8]` and `&str` inputs, some of them have take either a string or a byte slice as an argument, depending on the input type. 
 
 | parser | usage | input | output | description |
 |---|---|---|---|---|
 | bytes::complete::[is_a](https://docs.rs/nom/latest/nom/bytes/complete/fn.is_a.html)<br>bytes::streaming::[is_a](https://docs.rs/nom/latest/nom/bytes/streaming/fn.is_a.html) | `is_a("ab")` | `"ababc"` | Result: `"abab"`<br>Remainder: `"c"` | Matches a sequence of any of the characters passed as arguments |
+|  | `is_a([b'a', b'b'])` | `b"ababc"` | Result: `[97, 98, 97, 98]`<br>Remainder: `&[0x63]` | The argument is a an array of bytes because the input is `&[u8]` instead of `&str` |
 | bytes::complete::[is_not](https://docs.rs/nom/latest/nom/bytes/complete/fn.is_not.html)<br>bytes::streaming::[is_not](https://docs.rs/nom/latest/nom/bytes/streaming/fn.is_not.html) | `is_not("cd")` | `"ababc"` | Result: `"abab"`<br>Remainder: `"c"` | Matches a sequence of none of the characters passed as arguments |
 | character::complete::[alpha0](https://docs.rs/nom/latest/nom/character/complete/fn.alpha0.html)<br>character::streaming::[alpha0](https://docs.rs/nom/latest/nom/character/streaming/fn.alpha0.html) | `alpha0` | `"abc123"` | Result: `"abc"`<br>Remainder: `"123"` | Matches zero or more alphabetical ASCII characters (`a-zA-Z`) |
 | character::complete::[alpha1](https://docs.rs/nom/latest/nom/character/complete/fn.alpha1.html)<br>character::streaming::[alpha1](https://docs.rs/nom/latest/nom/character/streaming/fn.alpha1.html) | `alpha1` | `"abc123"` | Result: `"abc"`<br>Remainder: `"123"` | Matches one or more alphabetical ASCII characters (`a-zA-Z`) |
@@ -185,7 +189,7 @@ This goes for all the `0` and `1` suffixed parsers below:
 
 ### Numbers
 
-Nom can parse numbers either in [text](#text-to-number) or [binary](#binary-to-number) formats.
+Nom can parse numbers either in [text](#text-to-number) or [binary](#binary-to-number) formats. Note again that the text (`character`) based parsers accept `AsChar` inputs, meaning that they can accept both `&[u8]` and `&str` inputs. The binary (`number`) parsers only accept `&[u8]` inputs. 
 
 #### Text to number
 
@@ -196,10 +200,13 @@ Nom can parse numbers either in [text](#text-to-number) or [binary](#binary-to-n
 |  | `i8` | `"+123"` | Result: `123`<br>No remainder | You can use a sign if you want to |
 |  | `i8` | `"-123"` | Result: `-123`<br>No remainder |  |
 |  | `i8` | `"-200"` | Error<br>Byte offset: 0<br>Code: Digit | If the digits make a number that's too large, you will get an error |
+|  | `i8` | `b"+123"` | Result: `123`<br>No remainder | Text parsers work with `&[u8]` as well |
 | character::complete::[u8](https://docs.rs/nom/latest/nom/character/complete/fn.u8.html)<br>character::streaming::[u8](https://docs.rs/nom/latest/nom/character/streaming/fn.u8.html)<br>character::complete::[u16](https://docs.rs/nom/latest/nom/character/complete/fn.u16.html)<br>character::streaming::[u16](https://docs.rs/nom/latest/nom/character/streaming/fn.u16.html)<br>character::complete::[u32](https://docs.rs/nom/latest/nom/character/complete/fn.u32.html)<br>character::streaming::[u32](https://docs.rs/nom/latest/nom/character/streaming/fn.u32.html)<br>character::complete::[u64](https://docs.rs/nom/latest/nom/character/complete/fn.u64.html)<br>character::streaming::[u64](https://docs.rs/nom/latest/nom/character/streaming/fn.u64.html)<br>character::complete::[u128](https://docs.rs/nom/latest/nom/character/complete/fn.u128.html)<br>character::streaming::[u128](https://docs.rs/nom/latest/nom/character/streaming/fn.u128.html) | `u8` | `"123"` | Result: `123`<br>No remainder | Recognizes an unsigned integer. Various bitsize functions are available |
 |  | `u8` | `"123abc"` | Result: `123`<br>Remainder: `"abc"` |  |
-|  | `u8` | `"+123"` | Error<br>Byte offset: 0<br>Code: Digit |  |
+|  | `u8` | `"+123"` | Error<br>Byte offset: 0<br>Code: Digit | Unsigned doesn't like `+` or `-` signs |
 |  | `u8` | `"-123"` | Error<br>Byte offset: 0<br>Code: Digit |  |
+|  | `u8` | `"200"` | Result: `200`<br>No remainder | If the digits make a number that's too large, you will get an error |
+|  | `u8` | `b"+123"` | Error<br>Byte offset: 0<br>Code: Digit | Text parsers work with `&[u8]` as well |
 | number::complete::[double](https://docs.rs/nom/latest/nom/number/complete/fn.double.html)<br>number::streaming::[double](https://docs.rs/nom/latest/nom/number/streaming/fn.double.html)<br>number::complete::[float](https://docs.rs/nom/latest/nom/number/complete/fn.float.html)<br>number::streaming::[float](https://docs.rs/nom/latest/nom/number/streaming/fn.float.html) | `double` | `"123E-02"` | Result: `1.23`<br>No remainder | `double` recognizes floating point number in text format and returns an `f64`.  `float` does the same for `f32` |
 |  | `double` | `"123.456"` | Result: `123.456`<br>No remainder |  |
 |  | `double` | `"123.456E-02"` | Result: `1.23456`<br>No remainder |  |

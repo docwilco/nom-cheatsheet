@@ -99,19 +99,20 @@ Those are used to recognize the lowest level elements of your grammar, like, "he
 
 ### Single byte or character parsers
 
-All of these parsers will return a single byte or character.
+All of these parsers will return a single byte or character. Note that all of these parsers accept `Input<Item = AsChar>` inputs, meaning that they can parse both `&[u8]` and `&str`.
 
 | parser | usage | input | output | description |
 |---|---|---|---|---|
+| character::complete::char<br>character::streaming::char | `char('a')` | `"abc"` |  | Matches one specific character |
+| | `char('a')` | `"cba"` | | If that character isn't the immediate input, parsing fails |
+| | `char('💞')` | `"💞🦀"` | | Multi-byte characters work as well |
+| | `char('a')` | `b"cba"` | | `&[u8]` inputs work too |
+| character::complete::anychar<br>character::streaming::anychar | `anychar` | `"abc"` |  | Matches any single character |
+| | `anychar` | `"💞🦀"` | | Multi-byte characters work as well | 
 | character::complete::newline<br>character::streaming::newline | `newline` | `"\nhello"` |  | Matches a newline character, also known as line feed, `\n`, or `LF`. See also `crlf` and `line_ending` in the [sequence parsers section](#sequence-of-bytes-or-characters-parsers) |
 | character::complete::tab<br>character::streaming::tab | `tab` | `"\t"` |  | Matches a tab character, `\t` |
 | | `tab` | `"\t\t"` |  | It only matches a single tab |
 | | `tab` | `" \t"` |  | And does not match a space |
-| character::complete::char<br>character::streaming::char | `char('a')` | `"abc"` |  | Matches one specific character |
-| | `char('a')` | `"cba"` | | If that character isn't the immediate input, parsing fails |
-| | `char('💞')` | `"💞🦀"` | | Multi-byte characters work as well |
-| character::complete::anychar<br>character::streaming::anychar | `anychar` | `"abc"` |  | Matches any single character |
-| | `anychar` | `"💞🦀"` || Multi-byte characters work as well | 
 | character::complete::one_of<br>character::streaming::one_of | `one_of("abc")` | `"abc"` |  | Matches one of the provided characters |
 | character::complete::none_of<br>character::streaming::none_of | `none_of("abc")` | `"xyab"` |  | Matches a single character that is anything but the provided characters |
 | character::complete::satisfy<br>character::streaming::satisfy | `satisfy(\|c\| c == 'a' \|\| c == 'b')` | `"abc"` |  | Matches a single character that satisfies the provided function |
@@ -127,11 +128,14 @@ These parsers will return a slice of bytes or characters. Those suffixed with `0
 | | `digit0` | `"abc123"` |  | Because it is allowed to return an empty string, this does not error |
 | | `digit1` | `"abc123"` |  | This however does error, because there must be at least one numerical ASCII character |
 
-This goes for all the `0` and `1` suffixed parsers below:
+This goes for all the `0` and `1` suffixed parsers below.
+
+In addition to most of these accepting both `&[u8]` and `&str` inputs, some of them have take either a string or a byte slice as an argument, depending on the input type. 
 
 | parser | usage | input | output | description |
 |---|---|---|---|---|
 | bytes::complete::is_a<br>bytes::streaming::is_a | `is_a("ab")` | `"ababc"` |  | Matches a sequence of any of the characters passed as arguments |
+| | `is_a([b'a', b'b'])` | `b"ababc"` |  | The argument is a an array of bytes because the input is `&[u8]` instead of `&str` |
 | bytes::complete::is_not<br>bytes::streaming::is_not | `is_not("cd")` | `"ababc"` |  | Matches a sequence of none of the characters passed as arguments |
 | character::complete::alpha0<br>character::streaming::alpha0 | `alpha0` | `"abc123"` |  | Matches zero or more alphabetical ASCII characters (`a-zA-Z`) |
 | character::complete::alpha1<br>character::streaming::alpha1 | `alpha1` | `"abc123"` |  | Matches one or more alphabetical ASCII characters (`a-zA-Z`) |
@@ -183,7 +187,7 @@ This goes for all the `0` and `1` suffixed parsers below:
 
 ### Numbers
 
-Nom can parse numbers either in [text](#text-to-number) or [binary](#binary-to-number) formats.
+Nom can parse numbers either in [text](#text-to-number) or [binary](#binary-to-number) formats. Note again that the text (`character`) based parsers accept `AsChar` inputs, meaning that they can accept both `&[u8]` and `&str` inputs. The binary (`number`) parsers only accept `&[u8]` inputs. 
 
 #### Text to number
 
@@ -194,10 +198,13 @@ Nom can parse numbers either in [text](#text-to-number) or [binary](#binary-to-n
 | | `i8` | `"+123"` |  | You can use a sign if you want to |
 | | `i8` | `"-123"` |  |  |
 | | `i8` | `"-200"` |  | If the digits make a number that's too large, you will get an error |
+| | `i8` | `b"+123"` |  | Text parsers work with `&[u8]` as well |
 | character::complete::u8<br>character::streaming::u8<br>character::complete::u16<br>character::streaming::u16<br>character::complete::u32<br>character::streaming::u32<br>character::complete::u64<br>character::streaming::u64<br>character::complete::u128<br>character::streaming::u128 | `u8` | `"123"` |  | Recognizes an unsigned integer. Various bitsize functions are available |
 | | `u8` | `"123abc"` |  |  |
-| | `u8` | `"+123"` |  |  |
+| | `u8` | `"+123"` |  | Unsigned doesn't like `+` or `-` signs |
 | | `u8` | `"-123"` |  |  |
+| | `u8` | `"200"` |  | If the digits make a number that's too large, you will get an error |
+| | `u8` | `b"+123"` |  | Text parsers work with `&[u8]` as well |
 | number::complete::double<br>number::streaming::double<br>number::complete::float<br>number::streaming::float | `double` | `"123E-02"` |  | `double` recognizes floating point number in text format and returns an `f64`.  `float` does the same for `f32` |
 | | `double` | `"123.456"` |  |  |
 | | `double` | `"123.456E-02"` |  |  |

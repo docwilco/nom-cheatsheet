@@ -1780,7 +1780,7 @@ font-weight: bold;
 <h2><a href="#basic-elements" aria-hidden="true" class="anchor" id="basic-elements"></a>Basic elements</h2>
 <p>Those are used to recognize the lowest level elements of your grammar, like, &quot;here is a dot&quot;, &quot;here is a number&quot;, &quot;here is a line ending&quot;. These are split up into matching a single byte or character, and matching multiple bytes or characters.</p>
 <h3><a href="#single-byte-or-character-parsers" aria-hidden="true" class="anchor" id="single-byte-or-character-parsers"></a>Single byte or character parsers</h3>
-<p>All of these parsers will return a single byte or character.</p>
+<p>All of these parsers will return a single byte or character. Note that all of these parsers accept <code>Input&lt;Item = AsChar&gt;</code> inputs, meaning that they can parse both <code>&amp;[u8]</code> and <code>&amp;str</code>.</p>
 <table>
 <thead>
 <tr>
@@ -1792,6 +1792,48 @@ font-weight: bold;
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.char.html">char</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.char.html">char</a></td>
+<td><code>char('a')</code></td>
+<td><code>&quot;abc&quot;</code></td>
+<td>Result: <code>'a'</code><br>Remainder: <code>&quot;bc&quot;</code></td>
+<td>Matches one specific character</td>
+</tr>
+<tr>
+<td></td>
+<td><code>char('a')</code></td>
+<td><code>&quot;cba&quot;</code></td>
+<td>Error<br>Byte offset: 0<br>Code: Char</td>
+<td>If that character isn't the immediate input, parsing fails</td>
+</tr>
+<tr>
+<td></td>
+<td><code>char('💞')</code></td>
+<td><code>&quot;💞🦀&quot;</code></td>
+<td>Result: <code>'💞'</code><br>Remainder: <code>&quot;🦀&quot;</code></td>
+<td>Multi-byte characters work as well</td>
+</tr>
+<tr>
+<td></td>
+<td><code>char('a')</code></td>
+<td><code>b&quot;cba&quot;</code></td>
+<td>Error<br>Byte offset: 0<br>Code: Char</td>
+<td><code>&amp;[u8]</code> inputs work too</td>
+</tr>
+<tr>
+<td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.anychar.html">anychar</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.anychar.html">anychar</a></td>
+<td><code>anychar</code></td>
+<td><code>&quot;abc&quot;</code></td>
+<td>Result: <code>'a'</code><br>Remainder: <code>&quot;bc&quot;</code></td>
+<td>Matches any single character</td>
+</tr>
+<tr>
+<td></td>
+<td><code>anychar</code></td>
+<td><code>&quot;💞🦀&quot;</code></td>
+<td>Result: <code>'💞'</code><br>Remainder: <code>&quot;🦀&quot;</code></td>
+<td>Multi-byte characters work as well</td>
+</tr>
 <tr>
 <td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.newline.html">newline</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.newline.html">newline</a></td>
 <td><code>newline</code></td>
@@ -1819,41 +1861,6 @@ font-weight: bold;
 <td><code>&quot; \t&quot;</code></td>
 <td>Error<br>Byte offset: 0<br>Code: Char</td>
 <td>And does not match a space</td>
-</tr>
-<tr>
-<td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.char.html">char</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.char.html">char</a></td>
-<td><code>char('a')</code></td>
-<td><code>&quot;abc&quot;</code></td>
-<td>Result: <code>'a'</code><br>Remainder: <code>&quot;bc&quot;</code></td>
-<td>Matches one specific character</td>
-</tr>
-<tr>
-<td></td>
-<td><code>char('a')</code></td>
-<td><code>&quot;cba&quot;</code></td>
-<td>Error<br>Byte offset: 0<br>Code: Char</td>
-<td>If that character isn't the immediate input, parsing fails</td>
-</tr>
-<tr>
-<td></td>
-<td><code>char('💞')</code></td>
-<td><code>&quot;💞🦀&quot;</code></td>
-<td>Result: <code>'💞'</code><br>Remainder: <code>&quot;🦀&quot;</code></td>
-<td>Multi-byte characters work as well</td>
-</tr>
-<tr>
-<td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.anychar.html">anychar</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.anychar.html">anychar</a></td>
-<td><code>anychar</code></td>
-<td><code>&quot;abc&quot;</code></td>
-<td>Result: <code>'a'</code><br>Remainder: <code>&quot;bc&quot;</code></td>
-<td>Matches any single character</td>
-</tr>
-<tr>
-<td></td>
-<td><code>anychar</code></td>
-<td><code>&quot;💞🦀&quot;</code></td>
-<td>Result: <code>'💞'</code><br>Remainder: <code>&quot;🦀&quot;</code></td>
-<td>Multi-byte characters work as well</td>
 </tr>
 <tr>
 <td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.one_of.html">one_of</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.one_of.html">one_of</a></td>
@@ -1921,7 +1928,8 @@ font-weight: bold;
 </tr>
 </tbody>
 </table>
-<p>This goes for all the <code>0</code> and <code>1</code> suffixed parsers below:</p>
+<p>This goes for all the <code>0</code> and <code>1</code> suffixed parsers below.</p>
+<p>In addition to most of these accepting both <code>&amp;[u8]</code> and <code>&amp;str</code> inputs, some of them have take either a string or a byte slice as an argument, depending on the input type.</p>
 <table>
 <thead>
 <tr>
@@ -1939,6 +1947,13 @@ font-weight: bold;
 <td><code>&quot;ababc&quot;</code></td>
 <td>Result: <code>&quot;abab&quot;</code><br>Remainder: <code>&quot;c&quot;</code></td>
 <td>Matches a sequence of any of the characters passed as arguments</td>
+</tr>
+<tr>
+<td></td>
+<td><code>is_a([b'a', b'b'])</code></td>
+<td><code>b&quot;ababc&quot;</code></td>
+<td>Result: <code>[97, 98, 97, 98]</code><br>Remainder: <code>&amp;[0x63]</code></td>
+<td>The argument is a an array of bytes because the input is <code>&amp;[u8]</code> instead of <code>&amp;str</code></td>
 </tr>
 <tr>
 <td>bytes::complete::<a href="https://docs.rs/nom/latest/nom/bytes/complete/fn.is_not.html">is_not</a><br>bytes::streaming::<a href="https://docs.rs/nom/latest/nom/bytes/streaming/fn.is_not.html">is_not</a></td>
@@ -2279,7 +2294,7 @@ font-weight: bold;
 </tbody>
 </table>
 <h3><a href="#numbers" aria-hidden="true" class="anchor" id="numbers"></a>Numbers</h3>
-<p>Nom can parse numbers either in <a href="#text-to-number">text</a> or <a href="#binary-to-number">binary</a> formats.</p>
+<p>Nom can parse numbers either in <a href="#text-to-number">text</a> or <a href="#binary-to-number">binary</a> formats. Note again that the text (<code>character</code>) based parsers accept <code>AsChar</code> inputs, meaning that they can accept both <code>&amp;[u8]</code> and <code>&amp;str</code> inputs. The binary (<code>number</code>) parsers only accept <code>&amp;[u8]</code> inputs.</p>
 <h4><a href="#text-to-number" aria-hidden="true" class="anchor" id="text-to-number"></a>Text to number</h4>
 <table>
 <thead>
@@ -2328,6 +2343,13 @@ font-weight: bold;
 <td>If the digits make a number that's too large, you will get an error</td>
 </tr>
 <tr>
+<td></td>
+<td><code>i8</code></td>
+<td><code>b&quot;+123&quot;</code></td>
+<td>Result: <code>123</code><br>No remainder</td>
+<td>Text parsers work with <code>&amp;[u8]</code> as well</td>
+</tr>
+<tr>
 <td>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.u8.html">u8</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.u8.html">u8</a><br>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.u16.html">u16</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.u16.html">u16</a><br>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.u32.html">u32</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.u32.html">u32</a><br>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.u64.html">u64</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.u64.html">u64</a><br>character::complete::<a href="https://docs.rs/nom/latest/nom/character/complete/fn.u128.html">u128</a><br>character::streaming::<a href="https://docs.rs/nom/latest/nom/character/streaming/fn.u128.html">u128</a></td>
 <td><code>u8</code></td>
 <td><code>&quot;123&quot;</code></td>
@@ -2346,7 +2368,7 @@ font-weight: bold;
 <td><code>u8</code></td>
 <td><code>&quot;+123&quot;</code></td>
 <td>Error<br>Byte offset: 0<br>Code: Digit</td>
-<td></td>
+<td>Unsigned doesn't like <code>+</code> or <code>-</code> signs</td>
 </tr>
 <tr>
 <td></td>
@@ -2354,6 +2376,20 @@ font-weight: bold;
 <td><code>&quot;-123&quot;</code></td>
 <td>Error<br>Byte offset: 0<br>Code: Digit</td>
 <td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>u8</code></td>
+<td><code>&quot;200&quot;</code></td>
+<td>Result: <code>200</code><br>No remainder</td>
+<td>If the digits make a number that's too large, you will get an error</td>
+</tr>
+<tr>
+<td></td>
+<td><code>u8</code></td>
+<td><code>b&quot;+123&quot;</code></td>
+<td>Error<br>Byte offset: 0<br>Code: Digit</td>
+<td>Text parsers work with <code>&amp;[u8]</code> as well</td>
 </tr>
 <tr>
 <td>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.double.html">double</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.double.html">double</a><br>number::complete::<a href="https://docs.rs/nom/latest/nom/number/complete/fn.float.html">float</a><br>number::streaming::<a href="https://docs.rs/nom/latest/nom/number/streaming/fn.float.html">float</a></td>
